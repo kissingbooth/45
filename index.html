@@ -138,6 +138,98 @@
         padding: 1.5rem;
       }
 
+      /* Fullscreen Game Mode */
+      .fullscreen-game-mode {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 9999 !important;
+        background: #000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        overflow: hidden !important;
+      }
+      .fullscreen-game-mode #canvasContainer {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        border: none !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+      }
+      .fullscreen-game-mode #screenRatioBox {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+      }
+      .fullscreen-game-mode #cartridgeInfoBox {
+        display: none !important;
+      }
+
+      /* On-Screen D-Pad & Action Buttons */
+      .dpad-btn {
+        background: rgba(15, 23, 42, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        cursor: pointer;
+        transition: background-color 0.05s ease;
+      }
+      .dpad-btn:active, .dpad-btn.active {
+        background: rgba(56, 189, 248, 0.7) !important;
+        color: #040d1a !important;
+      }
+
+      .arcade-action-btn {
+        width: 3.25rem;
+        height: 3.25rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-pixel), monospace;
+        font-size: 0.85rem;
+        font-weight: 700;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        cursor: pointer;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        transition: transform 0.05s ease, filter 0.05s ease;
+      }
+      .arcade-action-btn:active, .arcade-action-btn.active {
+        transform: scale(0.92);
+        filter: brightness(1.35);
+      }
+
+      /* TV Safe Padding presets for on-screen controls to prevent TV bezel clipping */
+      .controls-margin-safe {
+        padding-left: max(3.5rem, 6vw) !important;
+        padding-right: max(3.5rem, 6vw) !important;
+        padding-bottom: max(3.25rem, 6vh) !important;
+      }
+      .controls-margin-high {
+        padding-left: max(5.5rem, 9vw) !important;
+        padding-right: max(5.5rem, 9vw) !important;
+        padding-bottom: max(5.5rem, 10vh) !important;
+      }
+      .controls-margin-compact {
+        padding-left: max(2rem, 3vw) !important;
+        padding-right: max(2rem, 3vw) !important;
+        padding-bottom: max(2rem, 4vh) !important;
+      }
+
       /* Custom Scrollbars */
       ::-webkit-scrollbar { width: 6px; height: 6px; }
       ::-webkit-scrollbar-track { background: #090d16; }
@@ -218,21 +310,24 @@
           <div>
             <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
               <span class="font-tech" style="font-weight: 700; font-size: 1rem; color: #fff;">
-                Perfil Ultra Leve • Núcleo Genesis Plus GX
+                Perfil Xiaomi Mi TV Stick (1GB RAM) & Genesis Plus GX
               </span>
-              <span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 0.1rem 0.4rem; border-radius: 9999px; font-family: monospace;">
-                SEM EFEITOS PESADOS
+              <span id="activeModePill" style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 0.1rem 0.4rem; border-radius: 9999px; font-family: monospace;">
+                PROTEÇÃO 1GB RAM ATIVA
               </span>
             </div>
             <p style="font-size: 0.775rem; color: #94a3b8; margin-top: 0.25rem; max-width: 48rem;">
-              Emulação precisa com ciclo idêntico e áudio YM2612. Renderização direta em tela limpa sem filtros ou vinhetas que sobrecarreguem a GPU.
+              Se o jogo não abrir devido ao limite de 1GB RAM da Mi TV Stick, o emulador alterna automaticamente para o núcleo <strong>PicoDrive</strong> (~18MB). Controles ajustados para área segura contra corte de bordas da TV.
             </p>
           </div>
         </div>
 
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+          <button id="btnSwitchStickMode" class="btn tv-focusable" style="font-size: 0.75rem; background: #1e293b; color: #38bdf8;" title="Alternar perfil de núcleo rápido">
+            ⚡ Modo 1GB: PicoDrive
+          </button>
           <button id="btnToggleTouch" class="btn tv-focusable" style="font-size: 0.75rem;">
-            📱 Controles de Toque
+            📱 Controles
           </button>
           <button id="btnQuickOptimize" class="btn btn-primary tv-focusable" style="font-size: 0.75rem;">
             ⚙️ Ajustes
@@ -244,13 +339,36 @@
       <div id="emulatorSection" class="hidden" style="display: flex; flex-direction: column; gap: 1.25rem;">
         <!-- Canvas Stage: Ultra-lightweight flat black, zero shadow, zero blur -->
         <div id="canvasContainer" style="position: relative; width: 100%; height: 680px; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 0.5rem; border: 1px solid #1e293b;">
-          <!-- Loading Message -->
-          <div id="emulatorLoadingOverlay" style="position: absolute; inset: 0; z-index: 30; background: #07090e; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 1.5rem;">
-            <div style="width: 3rem; height: 3rem; border: 3px solid #1e293b; border-top-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
-            <h3 id="loadingGameTitle" class="font-tech" style="font-size: 1.25rem; color: #fff; font-weight: 700;">Iniciando Genesis Plus GX...</h3>
-            <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">Carregando WebAssembly Genesis Plus GX sem filtros pesados...</p>
-            <div style="margin-top: 0.75rem; font-size: 0.7rem; font-family: monospace; color: #10b981; background: #0f172a; padding: 0.25rem 0.75rem; border-radius: 9999px; border: 1px solid #1e293b;">
-              Modo Ultra Leve Ativo
+          <!-- Loading Message & Fallback Diagnostics (Visible on TV screen) -->
+          <div id="emulatorLoadingOverlay" style="position: absolute; inset: 0; z-index: 35; background: #07090e; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem;">
+            <!-- Loading Spinner State -->
+            <div id="loadingSpinnerBox" style="display: flex; flex-direction: column; align-items: center;">
+              <div style="width: 3.25rem; height: 3.25rem; border: 3px solid #1e293b; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 1.25rem;"></div>
+              <h3 id="loadingGameTitle" class="font-tech" style="font-size: 1.25rem; color: #fff; font-weight: 700;">Iniciando Emulador...</h3>
+              <p id="loadingGameDesc" style="font-size: 0.825rem; color: #94a3b8; margin-top: 0.35rem; max-width: 28rem;">Carregando WebAssembly (Genesis Plus GX com auto-recuperação para PicoDrive)...</p>
+              <div id="loadingStatusPill" style="margin-top: 0.75rem; font-size: 0.7rem; font-family: monospace; color: #10b981; background: #0f172a; padding: 0.3rem 0.8rem; border-radius: 9999px; border: 1px solid #1e293b;">
+                ⚡ Modo Ultra Leve • Proteção 1GB RAM Ativa
+              </div>
+            </div>
+
+            <!-- TV Diagnostic & Fallback Card (Displayed if game fails to open) -->
+            <div id="loadingErrorBox" style="display: none; max-width: 34rem; background: #0f172a; border: 2px solid #ef4444; border-radius: 1rem; padding: 1.5rem; text-align: center;">
+              <div style="font-size: 2.25rem; margin-bottom: 0.5rem;">⚠️</div>
+              <h4 id="errorTitle" class="font-tech" style="color: #f87171; font-size: 1.2rem; font-weight: 700;">Falha ao Abrir o Jogo na Mi TV Stick</h4>
+              <p id="errorDescription" style="font-size: 0.825rem; color: #cbd5e1; margin-top: 0.5rem; line-height: 1.45;">
+                A Xiaomi Mi TV Stick possui 1GB de RAM. O núcleo Genesis Plus GX pode ter excedido a cota de memória do navegador da TV.
+              </p>
+              <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.25rem;">
+                <button id="btnErrorRetryPico" class="btn btn-emerald tv-focusable" style="padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 700;">
+                  ⚡ Iniciar com PicoDrive (Recomendado para 1GB RAM)
+                </button>
+                <button id="btnErrorRetryGenesis" class="btn tv-focusable" style="padding: 0.55rem 1rem; font-size: 0.8rem; background: #1e293b; color: #fff;">
+                  🔄 Tentar Genesis Plus GX Novamente
+                </button>
+                <button id="btnErrorExit" class="btn btn-danger tv-focusable" style="padding: 0.55rem 1rem; font-size: 0.8rem;">
+                  ⏏️ Voltar à Biblioteca de Jogos
+                </button>
+              </div>
             </div>
           </div>
 
@@ -261,22 +379,74 @@
             <div id="scanlinesOverlay" style="display: none; position: absolute; inset: 0; pointer-events: none; z-index: 10;"></div>
           </div>
 
-          <!-- Floating In-Game HUD (Flat solid background, zero blur, zero drop-shadow) -->
-          <div id="inGameHud" style="position: absolute; top: 1rem; left: 1rem; right: 1rem; z-index: 20; display: flex; justify-content: space-between; align-items: center; background: #0d121d; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.5rem 1rem;">
+          <!-- Floating In-Game HUD (Positioned safely inside TV overscan boundaries) -->
+          <div id="inGameHud" style="position: absolute; top: max(1.25rem, 3.5vh); left: max(2.5rem, 5vw); right: max(2.5rem, 5vw); z-index: 30; display: flex; justify-content: space-between; align-items: center; background: rgba(13, 18, 29, 0.9); border: 1px solid #334155; border-radius: 0.6rem; padding: 0.45rem 0.85rem; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
               <div>
                 <span id="hudGameName" class="font-tech" style="font-weight: 700; font-size: 0.85rem; color: #fff;">Mega Drive</span>
-                <span id="hudCorePill" style="font-size: 0.7rem; color: #38bdf8; display: block; font-family: monospace;">Genesis Plus GX • 60 FPS</span>
+                <span id="hudCorePill" style="font-size: 0.65rem; color: #38bdf8; display: block; font-family: monospace;">Genesis Plus GX • 60 FPS</span>
               </div>
             </div>
 
-            <div style="display: flex; items-center; gap: 0.4rem;">
-              <button id="btnHudPause" class="btn tv-focusable" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">⏸️ Pausar</button>
-              <button id="btnHudRestart" class="btn tv-focusable" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">🔄 Reiniciar</button>
-              <button id="btnHudQuickSave" class="btn btn-emerald tv-focusable" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">💾 Save (F1)</button>
-              <button id="btnHudQuickLoad" class="btn btn-primary tv-focusable" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">⚡ Load (F3)</button>
-              <button id="btnHudEject" class="btn btn-danger tv-focusable" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">⏏️ Ejetar</button>
+            <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+              <!-- TV Safe Margin Toggle (Fixes controls off-screen on any TV) -->
+              <button id="btnAdjustMargin" class="btn tv-focusable" style="padding: 0.35rem 0.6rem; font-size: 0.725rem; background: #1e293b; color: #38bdf8;" title="Alternar margem da TV (Padrão TV / Mais Alto / Compacto)">
+                📐 Margem TV
+              </button>
+              <!-- Option to hide/show play buttons in fullscreen -->
+              <button id="btnTogglePlayControls" class="btn tv-focusable" style="padding: 0.35rem 0.65rem; font-size: 0.725rem; background: #0284c7; color: #fff;" title="Ocultar ou mostrar botões de jogar (Atalho: Tecla H)">
+                👁️ Ocultar Botões
+              </button>
+              <button id="btnHudPause" class="btn tv-focusable" style="padding: 0.35rem 0.55rem; font-size: 0.725rem;">⏸️</button>
+              <button id="btnHudRestart" class="btn tv-focusable" style="padding: 0.35rem 0.55rem; font-size: 0.725rem;">🔄</button>
+              <button id="btnHudQuickSave" class="btn btn-emerald tv-focusable" style="padding: 0.35rem 0.55rem; font-size: 0.725rem;">💾 Save</button>
+              <button id="btnHudQuickLoad" class="btn tv-focusable" style="padding: 0.35rem 0.55rem; font-size: 0.725rem;">⚡ Load</button>
+              <button id="btnHudEject" class="btn btn-danger tv-focusable" style="padding: 0.35rem 0.6rem; font-size: 0.725rem;" title="Sair da Tela Cheia / Menu">⏏️ Sair</button>
+            </div>
+          </div>
+
+          <!-- Discreet Floating Button to Restore Controls when Hidden -->
+          <button id="btnRestoreControls" class="tv-focusable" style="display: none; position: absolute; top: max(1.25rem, 3.5vh); right: max(2.5rem, 5vw); z-index: 45; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 0.45rem 0.85rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+            🎮 Mostrar Botões (H)
+          </button>
+
+          <!-- On-Screen Play Buttons (Sega D-Pad & Action Buttons with Guaranteed TV-Safe Area) -->
+          <div id="playControlsOverlay" class="controls-margin-safe" style="position: absolute; left: 0; right: 0; bottom: 0; width: 100%; box-sizing: border-box; pointer-events: none; padding-left: max(3.5rem, 6vw); padding-right: max(3.5rem, 6vw); padding-bottom: max(3.25rem, 6vh); display: flex; justify-content: space-between; align-items: flex-end; z-index: 25; touch-action: none;">
+            <!-- Sega D-Pad (Left) -->
+            <div style="pointer-events: auto; position: relative; width: 7.25rem; height: 7.25rem; background: rgba(15, 23, 42, 0.75); border: 2px solid rgba(255, 255, 255, 0.25); border-radius: 50%;">
+              <div style="position: absolute; inset: 2.15rem; background: #0f172a; border-radius: 50%; border: 1px solid #334155;"></div>
+              <!-- Up -->
+              <button id="padUp" class="dpad-btn" data-key="up" style="position: absolute; top: 0.2rem; left: 2.3rem; width: 2.65rem; height: 2.25rem; border-radius: 0.4rem 0.4rem 0 0;">▲</button>
+              <!-- Down -->
+              <button id="padDown" class="dpad-btn" data-key="down" style="position: absolute; bottom: 0.2rem; left: 2.3rem; width: 2.65rem; height: 2.25rem; border-radius: 0 0 0.4rem 0.4rem;">▼</button>
+              <!-- Left -->
+              <button id="padLeft" class="dpad-btn" data-key="left" style="position: absolute; top: 2.3rem; left: 0.2rem; width: 2.25rem; height: 2.65rem; border-radius: 0.4rem 0 0 0.4rem;">◀</button>
+              <!-- Right -->
+              <button id="padRight" class="dpad-btn" data-key="right" style="position: absolute; top: 2.3rem; right: 0.2rem; width: 2.25rem; height: 2.65rem; border-radius: 0 0.4rem 0.4rem 0;">▶</button>
+            </div>
+
+            <!-- Mode & Start Buttons (Center Bottom) -->
+            <div style="pointer-events: auto; display: flex; gap: 0.65rem; margin-bottom: 0.75rem;">
+              <button id="btnPadMode" data-key="select" class="dpad-btn" style="width: 3.25rem; height: 1.65rem; border-radius: 0.35rem; font-size: 0.625rem; font-family: monospace; font-weight: 700; text-transform: uppercase;">
+                MODE
+              </button>
+              <button id="btnPadStart" data-key="start" class="dpad-btn" style="width: 3.25rem; height: 1.65rem; border-radius: 0.35rem; font-size: 0.625rem; font-family: monospace; font-weight: 700; text-transform: uppercase; color: #f43f5e;">
+                START
+              </button>
+            </div>
+
+            <!-- Sega Action Buttons A, B, C (Right, Positioned Comfortably Inside TV Safe Area) -->
+            <div style="pointer-events: auto; display: flex; align-items: center; gap: 0.55rem; transform: rotate(-6deg); margin-bottom: 0.75rem;">
+              <button id="btnPadA" data-key="y" class="arcade-action-btn" style="background: rgba(2, 132, 199, 0.8); color: #fff;">
+                A
+              </button>
+              <button id="btnPadB" data-key="b" class="arcade-action-btn" style="background: rgba(217, 119, 6, 0.8); color: #fff; margin-bottom: 0.85rem;">
+                B
+              </button>
+              <button id="btnPadC" data-key="a" class="arcade-action-btn" style="background: rgba(5, 150, 105, 0.8); color: #fff;">
+                C
+              </button>
             </div>
           </div>
         </div>
@@ -723,18 +893,46 @@
           return { data: uint8, fileName, header };
         }
 
-        // ----------------- LAUNCH GAME IN EMULATOR -----------------
-        async function launchGame(romData, name, header) {
+        // ----------------- LAUNCH GAME IN EMULATOR (1GB RAM & MI TV STICK SAFE) -----------------
+        async function launchGame(romData, name, header, forceCore) {
           state.currentRom = { name, header };
           state.currentRomData = romData;
 
-          // Update UI
+          // Enter Fullscreen Mode (100% viewport coverage)
+          const emuSection = document.getElementById('emulatorSection');
+          emuSection.classList.remove('hidden');
+          emuSection.classList.add('fullscreen-game-mode');
+          document.body.style.overflow = 'hidden';
+
+          // Try native browser fullscreen without letting rejection abort execution
+          try {
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+              document.documentElement.requestFullscreen().catch(() => {});
+            }
+          } catch (fsErr) {}
+
           document.getElementById('librarySection').classList.add('hidden');
-          document.getElementById('emulatorSection').classList.remove('hidden');
           document.getElementById('btnOpenSaveModal').classList.remove('hidden');
+
+          // Reset and show loading overlay
+          const loadingOverlay = document.getElementById('emulatorLoadingOverlay');
+          loadingOverlay.style.display = 'flex';
+          document.getElementById('loadingSpinnerBox').style.display = 'flex';
+          document.getElementById('loadingErrorBox').style.display = 'none';
+
           document.getElementById('loadingGameTitle').innerText = name;
           document.getElementById('hudGameName').innerText = name;
-          document.getElementById('emulatorLoadingOverlay').style.display = 'flex';
+
+          // Ensure play buttons are visible on launch
+          const overlay = document.getElementById('playControlsOverlay');
+          if (overlay) overlay.style.display = 'flex';
+          const btnToggle = document.getElementById('btnTogglePlayControls');
+          if (btnToggle) {
+            btnToggle.innerText = '👁️ Ocultar Botões';
+            btnToggle.style.background = '#0284c7';
+          }
+          const restoreBtn = document.getElementById('btnRestoreControls');
+          if (restoreBtn) restoreBtn.style.display = 'none';
 
           // Cartridge Info
           document.getElementById('cartridgeTitle').innerText = header.domesticTitle || name;
@@ -742,7 +940,7 @@
           document.getElementById('cartridgeChecksum').innerText = '0x' + (header.checksumHex || '0000');
           document.getElementById('cartridgeSram').innerText = header.hasSram ? 'Chip RA Presente (Suporta Save)' : 'Simulação de Estado';
 
-          // Exit previous instance
+          // Exit previous instance cleanly
           if (state.nostalgistInstance) {
             try { await state.nostalgistInstance.exit(); } catch(e){}
             state.nostalgistInstance = null;
@@ -750,32 +948,107 @@
 
           const canvas = document.getElementById('gameCanvas');
           const romBlob = new Blob([romData.buffer || romData], { type: 'application/octet-stream' });
-          const core = state.settings.core === 'picodrive' ? 'picodrive' : 'genesis_plus_gx';
+          let targetCore = forceCore || (state.settings.core === 'picodrive' ? 'picodrive' : 'genesis_plus_gx');
 
+          // Unlock / resume Web Audio context for Android TV if suspended
           try {
-            const instance = await window.Nostalgist.launch({
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              const audioCtx = new AudioCtx();
+              if (audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+              }
+            }
+          } catch(e) {}
+
+          async function bootInstance(coreToUse) {
+            const isPico = (coreToUse === 'picodrive');
+            document.getElementById('loadingGameDesc').innerText = isPico
+              ? 'Carregando núcleo PicoDrive (Super Leve para Mi TV Stick 1GB RAM)...'
+              : 'Carregando núcleo Genesis Plus GX (Alta fidelidade de áudio)...';
+
+            document.getElementById('hudCorePill').innerText =
+              (isPico ? 'PicoDrive (1GB Safe)' : 'Genesis Plus GX') + ' • 60 FPS';
+
+            return await window.Nostalgist.launch({
               element: canvas,
-              core: core,
+              core: coreToUse,
               rom: romBlob,
               retroarchConfig: {
                 video_vsync: true,
-                rewind_enable: false, // RAM Guard for 1GB
-                run_ahead_enabled: false,
+                rewind_enable: false, // Mandatory RAM Guard for 1GB stick
+                run_ahead_enabled: false, // Low CPU overhead on Cortex-A53
                 audio_enable: !state.settings.muted,
-                audio_latency: 80,
+                audio_latency: 96,
+                video_smooth: false,
               }
             });
+          }
 
+          try {
+            // Primary boot attempt with selected core
+            const instance = await bootInstance(targetCore);
             state.nostalgistInstance = instance;
             document.getElementById('emulatorLoadingOverlay').style.display = 'none';
 
             // Auto-save to library in IndexedDB
             saveRomToDb(name, romData, header);
           } catch (err) {
-            console.error('Launch failed:', err);
-            alert('Falha ao iniciar o núcleo WebAssembly: ' + err.message);
-            document.getElementById('emulatorLoadingOverlay').style.display = 'none';
+            console.warn(`Tentativa com ${targetCore} falhou:`, err);
+
+            // Auto-fallback: If Genesis Plus GX failed (due to 1GB RAM limit or WASM Memory OOM),
+            // immediately retry with PicoDrive (uses only ~18MB RAM)
+            if (targetCore === 'genesis_plus_gx') {
+              try {
+                console.log('Alternando automaticamente para o núcleo PicoDrive (1GB RAM Guard)...');
+                document.getElementById('loadingGameTitle').innerText = 'Ajustando para Mi TV Stick...';
+                document.getElementById('loadingGameDesc').innerText =
+                  'Genesis Plus GX excedeu o limite de 1GB RAM. Iniciando PicoDrive (Ultra Leve)...';
+                document.getElementById('loadingStatusPill').innerText = '⚡ Auto-Recuperação: PicoDrive (1GB RAM)';
+
+                const instance = await bootInstance('picodrive');
+                state.nostalgistInstance = instance;
+                state.settings.core = 'picodrive';
+                document.getElementById('emulatorLoadingOverlay').style.display = 'none';
+
+                // Update indicators
+                document.getElementById('currentCorePill').innerText = 'PicoDrive (1GB Safe)';
+                saveRomToDb(name, romData, header);
+                return;
+              } catch (fallbackErr) {
+                console.error('PicoDrive fallback failed:', fallbackErr);
+                showLaunchError(fallbackErr.message || String(fallbackErr), name);
+                return;
+              }
+            } else {
+              showLaunchError(err.message || String(err), name);
+            }
           }
+        }
+
+        function showLaunchError(errorMessage, name) {
+          document.getElementById('loadingSpinnerBox').style.display = 'none';
+          const errorBox = document.getElementById('loadingErrorBox');
+          errorBox.style.display = 'block';
+          document.getElementById('errorDescription').innerText =
+            `Aviso da Mi TV Stick: Não foi possível iniciar "${name}" (${errorMessage}).\n\nDispositivos de 1GB de RAM exigem o núcleo PicoDrive. Clique abaixo para forçar o PicoDrive ou verificar a conexão:`;
+
+          document.getElementById('btnErrorRetryPico').onclick = () => {
+            state.settings.core = 'picodrive';
+            if (state.currentRomData && state.currentRom) {
+              launchGame(state.currentRomData, state.currentRom.name, state.currentRom.header, 'picodrive');
+            }
+          };
+
+          document.getElementById('btnErrorRetryGenesis').onclick = () => {
+            if (state.currentRomData && state.currentRom) {
+              launchGame(state.currentRomData, state.currentRom.name, state.currentRom.header, 'genesis_plus_gx');
+            }
+          };
+
+          document.getElementById('btnErrorExit').onclick = () => {
+            document.getElementById('btnHudEject').click();
+          };
         }
 
         // ----------------- INDEXEDDB STORAGE -----------------
@@ -995,13 +1268,143 @@
 
           document.getElementById('btnHudEject').onclick = () => {
             if (state.nostalgistInstance) {
-              state.nostalgistInstance.exit();
+              try { state.nostalgistInstance.exit(); } catch(e){}
               state.nostalgistInstance = null;
             }
-            document.getElementById('emulatorSection').classList.add('hidden');
+            const emuSection = document.getElementById('emulatorSection');
+            emuSection.classList.remove('fullscreen-game-mode');
+            emuSection.classList.add('hidden');
+            document.body.style.overflow = '';
+            if (document.fullscreenElement && document.exitFullscreen) {
+              document.exitFullscreen().catch(() => {});
+            }
             document.getElementById('librarySection').classList.remove('hidden');
             document.getElementById('btnOpenSaveModal').classList.add('hidden');
           };
+
+          // Fullscreen play buttons toggle logic
+          function togglePlayControls(forceShow) {
+            const overlay = document.getElementById('playControlsOverlay');
+            const btn = document.getElementById('btnTogglePlayControls');
+            const restoreBtn = document.getElementById('btnRestoreControls');
+            if (!overlay) return;
+
+            const isCurrentlyVisible = overlay.style.display !== 'none';
+            const willShow = forceShow !== undefined ? forceShow : !isCurrentlyVisible;
+
+            if (willShow) {
+              overlay.style.display = 'flex';
+              if (btn) {
+                btn.innerText = '👁️ Ocultar Botões';
+                btn.style.background = '#0284c7';
+              }
+              if (restoreBtn) restoreBtn.style.display = 'none';
+            } else {
+              overlay.style.display = 'none';
+              if (btn) {
+                btn.innerText = '🎮 Mostrar Botões';
+                btn.style.background = '#1e293b';
+              }
+              if (restoreBtn) restoreBtn.style.display = 'block';
+            }
+          }
+
+          const btnTogglePlayControls = document.getElementById('btnTogglePlayControls');
+          if (btnTogglePlayControls) btnTogglePlayControls.onclick = () => togglePlayControls();
+
+          const btnRestoreControls = document.getElementById('btnRestoreControls');
+          if (btnRestoreControls) btnRestoreControls.onclick = () => togglePlayControls(true);
+
+          // TV Safe Margin cycler: 'safe' (3.5rem bottom / 6vw) -> 'high' (5.5rem bottom / 9vw) -> 'compact' (2rem bottom / 3vw)
+          let marginPreset = 'safe';
+          const btnAdjustMargin = document.getElementById('btnAdjustMargin');
+          if (btnAdjustMargin) {
+            btnAdjustMargin.onclick = () => {
+              const overlay = document.getElementById('playControlsOverlay');
+              if (!overlay) return;
+              overlay.classList.remove('controls-margin-safe', 'controls-margin-high', 'controls-margin-compact');
+              if (marginPreset === 'safe') {
+                marginPreset = 'high';
+                overlay.classList.add('controls-margin-high');
+                btnAdjustMargin.innerText = '📐 Margem: Alta';
+              } else if (marginPreset === 'high') {
+                marginPreset = 'compact';
+                overlay.classList.add('controls-margin-compact');
+                btnAdjustMargin.innerText = '📐 Margem: Mínima';
+              } else {
+                marginPreset = 'safe';
+                overlay.classList.add('controls-margin-safe');
+                btnAdjustMargin.innerText = '📐 Margem TV';
+              }
+            };
+          }
+
+          // Quick Stick Profile Mode button
+          const btnSwitchStickMode = document.getElementById('btnSwitchStickMode');
+          if (btnSwitchStickMode) {
+            btnSwitchStickMode.onclick = () => {
+              if (state.settings.core === 'genesis_plus_gx') {
+                state.settings.core = 'picodrive';
+                btnSwitchStickMode.innerText = '⚡ Modo 1GB: PicoDrive (Ativo)';
+                btnSwitchStickMode.style.background = '#065f46';
+                btnSwitchStickMode.style.color = '#34d399';
+                document.getElementById('currentCorePill').innerText = 'PicoDrive (1GB Safe)';
+                document.getElementById('activeModePill').innerText = 'MODO PICODRIVE ATIVO';
+              } else {
+                state.settings.core = 'genesis_plus_gx';
+                btnSwitchStickMode.innerText = '⚡ Modo 1GB: PicoDrive';
+                btnSwitchStickMode.style.background = '#1e293b';
+                btnSwitchStickMode.style.color = '#38bdf8';
+                document.getElementById('currentCorePill').innerText = 'Genesis Plus GX';
+                document.getElementById('activeModePill').innerText = 'PROTEÇÃO 1GB RAM ATIVA';
+              }
+            };
+          }
+
+          // Keyboard shortcut 'H' to toggle on-screen play buttons
+          window.addEventListener('keydown', (e) => {
+            if ((e.key === 'h' || e.key === 'H') && state.nostalgistInstance) {
+              togglePlayControls();
+            }
+          });
+
+          // Wire on-screen arcade buttons to Nostalgist
+          function setupTouchButton(buttonId, retroArchKey) {
+            const buttonEl = document.getElementById(buttonId);
+            if (!buttonEl) return;
+            const press = (e) => {
+              e.preventDefault();
+              buttonEl.classList.add('active');
+              if (navigator.vibrate) navigator.vibrate(12);
+              if (state.nostalgistInstance) {
+                try { state.nostalgistInstance.pressDown(retroArchKey); } catch(err){}
+              }
+            };
+            const release = (e) => {
+              e.preventDefault();
+              buttonEl.classList.remove('active');
+              if (state.nostalgistInstance) {
+                try { state.nostalgistInstance.pressUp(retroArchKey); } catch(err){}
+              }
+            };
+
+            buttonEl.addEventListener('touchstart', press, { passive: false });
+            buttonEl.addEventListener('touchend', release, { passive: false });
+            buttonEl.addEventListener('touchcancel', release, { passive: false });
+            buttonEl.addEventListener('mousedown', press);
+            buttonEl.addEventListener('mouseup', release);
+            buttonEl.addEventListener('mouseleave', release);
+          }
+
+          setupTouchButton('padUp', 'up');
+          setupTouchButton('padDown', 'down');
+          setupTouchButton('padLeft', 'left');
+          setupTouchButton('padRight', 'right');
+          setupTouchButton('btnPadA', 'y'); // Sega A
+          setupTouchButton('btnPadB', 'b'); // Sega B
+          setupTouchButton('btnPadC', 'a'); // Sega C
+          setupTouchButton('btnPadStart', 'start');
+          setupTouchButton('btnPadMode', 'select');
 
           // Fullscreen
           document.getElementById('btnToggleFullscreen').onclick = () => {
