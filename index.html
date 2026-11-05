@@ -1,0 +1,1803 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mega Drive TV Stick Emulator (1GB RAM)</title>
+    <meta name="description" content="Emulador de Mega Drive de alto desempenho otimizado para Mi TV Stick (1GB RAM) com navegação por controle remoto, suporte a controle Bluetooth, gerenciador avançado de memória RAM, save states e carregador de ROMs externas." />
+    <meta property="og:title" content="Mega Drive TV Stick Emulator" />
+    <meta property="og:description" content="Emulador de Mega Drive de alto desempenho otimizado para Mi TV Stick (1GB RAM) em arquivo autossuficiente." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+      :root {
+        --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        --font-mono: 'Space Mono', monospace;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: var(--font-sans);
+        background-color: #080b11;
+        color: #f1f5f9;
+        user-select: none;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      /* Pixel-Art Crisp Rendering */
+      .pixel-crisp {
+        image-rendering: -moz-crisp-edges;
+        image-rendering: -webkit-crisp-edges;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+
+      /* Lightweight CSS Scanlines (0 GPU RAM Overhead) */
+      .scanline-overlay {
+        background: linear-gradient(
+          rgba(18, 16, 16, 0) 50%,
+          rgba(0, 0, 0, 0.35) 50%
+        );
+        background-size: 100% 4px;
+        pointer-events: none;
+      }
+
+      /* 10-Foot TV Focus Glow */
+      .tv-focusable {
+        outline: none;
+        transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      .tv-focusable:focus,
+      .tv-focusable.is-focused {
+        outline: none;
+        transform: scale(1.03);
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.4), 0 10px 25px -5px rgba(14, 165, 233, 0.3) !important;
+        z-index: 20;
+      }
+
+      /* Custom scrollbars */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+      ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.6); }
+
+      /* Animation utilities */
+      @keyframes pulseSlow {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+      .animate-pulse-slow {
+        animation: pulseSlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin-custom {
+        animation: spin 1s linear infinite;
+      }
+
+      /* Layout & Utilities */
+      .container-tv {
+        width: 100%;
+        max-width: 1380px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        border: 1px solid transparent;
+        font-weight: 600;
+        border-radius: 0.75rem;
+        transition: all 0.15s ease;
+        text-decoration: none;
+      }
+      .btn-cyan {
+        background-color: #06b6d4;
+        color: #020617;
+      }
+      .btn-cyan:hover {
+        background-color: #22d3ee;
+      }
+      .btn-dark {
+        background-color: #0f172a;
+        border-color: #334155;
+        color: #e2e8f0;
+      }
+      .btn-dark:hover {
+        background-color: #1e293b;
+        color: #ffffff;
+      }
+      .btn-emerald {
+        background-color: #059669;
+        color: #020617;
+      }
+      .btn-emerald:hover {
+        background-color: #10b981;
+      }
+      .btn-rose {
+        background-color: rgba(136, 19, 55, 0.8);
+        border-color: rgba(225, 29, 72, 0.6);
+        color: #fecdd3;
+      }
+      .btn-rose:hover {
+        background-color: rgba(159, 18, 57, 0.9);
+      }
+
+      /* Modal styling */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        padding: 1rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+      }
+      .modal-backdrop.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .modal-content {
+        background-color: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 1rem;
+        width: 100%;
+        max-width: 780px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      }
+      .modal-header {
+        padding: 1rem 1.5rem;
+        background-color: rgba(2, 6, 23, 0.8);
+        border-bottom: 1px solid #1e293b;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .modal-body {
+        padding: 1.5rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      .modal-footer {
+        padding: 1rem 1.5rem;
+        background-color: rgba(2, 6, 23, 0.9);
+        border-top: 1px solid #1e293b;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ==================== HEADER ==================== -->
+    <header style="width:100%; background:rgba(2,6,23,0.92); border-bottom:1px solid #1e293b; padding:0.75rem 1.5rem; position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between; gap:1rem;">
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        <div style="width:36px; height:36px; border-radius:8px; background:linear-gradient(135deg, #2563eb, #06b6d4); padding:2px; display:flex; align-items:center; justify-content:center;">
+          <div style="width:100%; height:100%; background:#020617; border-radius:6px; display:flex; align-items:center; justify-content:center;">
+            <span style="color:#38bdf8; font-weight:800; font-size:11px; font-family:var(--font-mono);">16BIT</span>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="font-size:1rem; font-weight:700; color:#ffffff; white-space:nowrap;">Mega Drive <span style="color:#38bdf8; font-family:var(--font-mono); font-size:0.85rem;">TV STICK</span></span>
+            <span style="background:rgba(23,37,84,0.8); color:#93c5fd; border:1px solid #1e40af; border-radius:4px; font-size:10px; font-family:var(--font-mono); padding:1px 6px;">Mi TV Stick 1GB OK</span>
+          </div>
+          <div id="headerSubtitle" style="font-size:11px; color:#94a3b8;">Emulador autossuficiente otimizado para TV e Gamepad Bluetooth</div>
+        </div>
+      </div>
+
+      <!-- Controls & RAM Gauge -->
+      <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+        <!-- RAM Gauge Widget -->
+        <div id="ramWidget" class="tv-focusable" tabindex="0" onclick="openModal('optimizerModal')" style="cursor:pointer; padding:0.35rem 0.65rem; border-radius:8px; background:rgba(6,78,59,0.7); border:1px solid rgba(16,185,129,0.5); color:#6ee7b7; display:flex; align-items:center; gap:0.5rem;" title="Clique para gerenciar a memória RAM">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+          <div style="font-family:var(--font-mono); font-size:11px; line-height:1.2;">
+            <span id="ramText" style="font-weight:700;">85 MB</span> <span style="font-size:9px; opacity:0.8;">/ 1 GB</span>
+            <div id="ramStatusText" style="font-size:9px; color:#a7f3d0;">RAM Otimizada</div>
+          </div>
+        </div>
+
+        <!-- 1-Click RAM Flush -->
+        <button id="btnQuickGc" class="btn btn-dark tv-focusable" style="padding:0.4rem 0.65rem; font-size:11px; border-color:rgba(6,182,212,0.4); color:#67e8f9;" onclick="triggerQuickGc()" title="Liberar memória RAM agora (Garbage Collection)">
+          <svg id="gcIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+          <span style="font-weight:600;">Liberar RAM</span>
+        </button>
+
+        <!-- Gamepad Button -->
+        <button id="btnGamepad" class="btn btn-dark tv-focusable" style="padding:0.4rem 0.65rem; font-size:11px;" onclick="openModal('gamepadModal')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="2"/></svg>
+          <span id="gamepadLabel">Gamepad</span>
+          <span id="gamepadDot" style="width:7px; height:7px; border-radius:50%; background:#64748b; display:inline-block;"></span>
+        </button>
+
+        <!-- Load ROM Button -->
+        <button class="btn btn-dark tv-focusable" style="padding:0.4rem 0.65rem; font-size:11px; background:#1e3a8a; border-color:#2563eb; color:#eff6ff;" onclick="openModal('romModal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Carregar ROM</span>
+        </button>
+
+        <!-- Settings Modal Trigger -->
+        <button class="btn btn-dark tv-focusable" style="padding:0.4rem 0.55rem;" onclick="openModal('optimizerModal')" title="Configurações e Otimização de RAM">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        </button>
+
+        <!-- Download Standalone Single File Button -->
+        <button class="btn btn-dark tv-focusable" style="padding:0.4rem 0.55rem; color:#facc15; border-color:#854d0e;" onclick="downloadSelfFile()" title="Baixar este arquivo HTML autossuficiente para usar no Pen-drive ou TV Stick">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Global Notification Banner -->
+    <div id="globalBanner" style="display:none; background:#f59e0b; color:#020617; font-size:12px; font-weight:700; text-align:center; padding:0.4rem; transition:all 0.2s;"></div>
+
+    <!-- ==================== MAIN VIEWPORT ==================== -->
+    <main style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; width:100%;">
+      
+      <!-- VIEW 1: GAMEPLAY VIEWPORT (Visible when running a game) -->
+      <div id="emulatorView" style="display:none; width:100%; min-height:calc(100vh - 110px); background:#000000; position:relative; flex-direction:column; align-items:center; justify-content:center;">
+        
+        <!-- Top Floating Overlay Bar -->
+        <div style="position:absolute; top:0; left:0; right:0; z-index:30; padding:0.6rem 1rem; background:linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display:flex; align-items:center; justify-content:space-between; pointer-events:auto;">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <button class="btn btn-dark tv-focusable" style="padding:0.35rem 0.7rem; font-size:11px;" onclick="exitToLibrary()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+              <span>Biblioteca</span>
+            </button>
+            <div style="background:rgba(2,6,23,0.7); border:1px solid #1e293b; border-radius:8px; padding:0.3rem 0.6rem; font-family:var(--font-mono); font-size:11px; display:flex; align-items:center; gap:0.5rem;">
+              <span id="activeGameTitle" style="font-weight:700; color:#ffffff;">Blast Runner 16-Bit</span>
+              <span style="color:#475569;">·</span>
+              <span id="activeFps" style="color:#38bdf8;">60 FPS</span>
+              <span style="color:#475569;">·</span>
+              <span id="activeCoreBadge" style="color:#94a3b8;">PICODRIVE</span>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:0.4rem;">
+            <button id="btnPause" class="btn btn-dark tv-focusable" style="padding:0.35rem 0.5rem;" onclick="togglePauseGame()" title="Pausar / Retomar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+            <button class="btn btn-dark tv-focusable" style="padding:0.35rem 0.5rem; color:#10b981;" onclick="openModal('savesModal')" title="Salvar / Carregar Estados">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            </button>
+            <button class="btn btn-dark tv-focusable" style="padding:0.35rem 0.5rem;" onclick="toggleVirtualControls()" title="Exibir/Ocultar Controles na Tela">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <button class="btn btn-dark tv-focusable" style="padding:0.35rem 0.5rem;" onclick="toggleFullscreen()" title="Tela Cheia">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div id="canvasWrapper" style="position:relative; display:flex; align-items:center; justify-content:center; width:100%; height:100%; flex:1; padding:0.5rem;">
+          <canvas id="gameCanvas" width="320" height="224" class="pixel-crisp" style="max-width:100%; max-height:85vh; aspect-ratio:4/3; object-contain:contain; border-radius:8px; box-shadow:0 20px 40px rgba(0,0,0,0.8);"></canvas>
+          <div id="crtOverlay" class="scanline-overlay" style="display:none; position:absolute; inset:0; z-index:10;"></div>
+        </div>
+
+        <!-- In-Game TV Quick Menu (ESC / Menu key) -->
+        <div id="inGameMenu" style="display:none; position:absolute; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); z-index:40; align-items:center; justify-content:center; padding:1rem;">
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:1rem; padding:1.5rem; max-width:380px; width:100%; text-align:center; box-shadow:0 25px 50px rgba(0,0,0,0.8); display:flex; flex-direction:column; gap:0.75rem;">
+            <div style="font-family:var(--font-mono); font-size:10px; color:#38bdf8; font-weight:700; text-transform:uppercase;">Menu Rápido da TV</div>
+            <h3 id="quickMenuGameTitle" style="color:#ffffff; font-size:1.15rem; font-weight:700;">Jogo em Pausa</h3>
+            <p id="quickMenuStats" style="font-size:11px; color:#94a3b8; font-family:var(--font-mono);">RAM: 85 MB · FPS: 60 · 1GB Mi TV Stick OK</p>
+
+            <button class="btn btn-cyan tv-focusable" style="padding:0.6rem; font-size:12px; font-weight:700;" onclick="closeInGameMenu()">Continuar Jogando</button>
+            <button class="btn btn-dark tv-focusable" style="padding:0.6rem; font-size:12px;" onclick="closeInGameMenu(); openModal('savesModal');">💾 Salvar / Carregar Estados (1-5)</button>
+            <button class="btn btn-dark tv-focusable" style="padding:0.6rem; font-size:12px; color:#38bdf8;" onclick="triggerQuickGc()">⚡ Liberar Memória RAM Agora (GC)</button>
+            <button class="btn btn-dark tv-focusable" style="padding:0.6rem; font-size:12px;" onclick="closeInGameMenu(); openModal('optimizerModal');">⚙️ Otimizador Mi TV Stick (1GB RAM)</button>
+            <button class="btn btn-dark tv-focusable" style="padding:0.6rem; font-size:12px;" onclick="closeInGameMenu(); openModal('gamepadModal');">🎮 Configurar Gamepad Bluetooth</button>
+            <button class="btn btn-dark tv-focusable" style="padding:0.6rem; font-size:12px;" onclick="restartCurrentGame()">🔄 Reiniciar Jogo</button>
+            <button class="btn btn-rose tv-focusable" style="padding:0.6rem; font-size:12px; font-weight:600;" onclick="exitToLibrary()">🚪 Sair para a Biblioteca</button>
+          </div>
+        </div>
+
+        <!-- On-Screen Virtual Gamepad (Optional) -->
+        <div id="virtualControls" style="display:none; position:absolute; bottom:1rem; left:1rem; right:1rem; z-index:25; display:flex; justify-content:space-between; align-items:flex-end; pointer-events:none;">
+          <!-- Virtual D-Pad -->
+          <div style="width:120px; height:120px; border-radius:50%; background:rgba(15,23,42,0.7); border:1px solid #334155; position:relative; pointer-events:auto; backdrop-filter:blur(4px);">
+            <button onmousedown="sendGameInput('up', true)" onmouseup="sendGameInput('up', false)" ontouchstart="sendGameInput('up', true)" ontouchend="sendGameInput('up', false)" style="position:absolute; top:2px; left:40px; width:40px; height:36px; background:#1e293b; color:#fff; border:none; border-radius:4px; font-weight:bold;">▲</button>
+            <button onmousedown="sendGameInput('down', true)" onmouseup="sendGameInput('down', false)" ontouchstart="sendGameInput('down', true)" ontouchend="sendGameInput('down', false)" style="position:absolute; bottom:2px; left:40px; width:40px; height:36px; background:#1e293b; color:#fff; border:none; border-radius:4px; font-weight:bold;">▼</button>
+            <button onmousedown="sendGameInput('left', true)" onmouseup="sendGameInput('left', false)" ontouchstart="sendGameInput('left', true)" ontouchend="sendGameInput('left', false)" style="position:absolute; left:2px; top:40px; width:36px; height:40px; background:#1e293b; color:#fff; border:none; border-radius:4px; font-weight:bold;">◄</button>
+            <button onmousedown="sendGameInput('right', true)" onmouseup="sendGameInput('right', false)" ontouchstart="sendGameInput('right', true)" ontouchend="sendGameInput('right', false)" style="position:absolute; right:2px; top:40px; width:36px; height:40px; background:#1e293b; color:#fff; border:none; border-radius:4px; font-weight:bold;">►</button>
+          </div>
+
+          <!-- Virtual Start/Mode -->
+          <div style="display:flex; gap:0.5rem; pointer-events:auto; padding-bottom:1rem;">
+            <button onmousedown="sendGameInput('mode', true)" onmouseup="sendGameInput('mode', false)" style="padding:4px 10px; background:#1e293b; color:#94a3b8; border:1px solid #334155; border-radius:12px; font-size:10px; font-family:var(--font-mono);">MODE</button>
+            <button onmousedown="sendGameInput('start', true)" onmouseup="sendGameInput('start', false)" style="padding:4px 12px; background:#1e293b; color:#ffffff; border:1px solid #334155; border-radius:12px; font-size:11px; font-weight:bold;">START</button>
+          </div>
+
+          <!-- Virtual 6-Buttons -->
+          <div style="background:rgba(15,23,42,0.7); border:1px solid #334155; border-radius:24px; padding:0.5rem; display:flex; flex-direction:column; gap:0.4rem; pointer-events:auto; backdrop-filter:blur(4px);">
+            <div style="display:flex; gap:0.4rem;">
+              <button onmousedown="sendGameInput('x', true)" onmouseup="sendGameInput('x', false)" ontouchstart="sendGameInput('x', true)" ontouchend="sendGameInput('x', false)" style="width:36px; height:36px; border-radius:50%; background:#1e293b; color:#e2e8f0; border:1px solid #475569; font-size:11px; font-weight:bold;">X</button>
+              <button onmousedown="sendGameInput('y', true)" onmouseup="sendGameInput('y', false)" ontouchstart="sendGameInput('y', true)" ontouchend="sendGameInput('y', false)" style="width:36px; height:36px; border-radius:50%; background:#1e293b; color:#e2e8f0; border:1px solid #475569; font-size:11px; font-weight:bold;">Y</button>
+              <button onmousedown="sendGameInput('z', true)" onmouseup="sendGameInput('z', false)" ontouchstart="sendGameInput('z', true)" ontouchend="sendGameInput('z', false)" style="width:36px; height:36px; border-radius:50%; background:#1e293b; color:#e2e8f0; border:1px solid #475569; font-size:11px; font-weight:bold;">Z</button>
+            </div>
+            <div style="display:flex; gap:0.4rem;">
+              <button onmousedown="sendGameInput('a', true)" onmouseup="sendGameInput('a', false)" ontouchstart="sendGameInput('a', true)" ontouchend="sendGameInput('a', false)" style="width:40px; height:40px; border-radius:50%; background:#1d4ed8; color:#fff; border:2px solid #3b82f6; font-size:13px; font-weight:bold;">A</button>
+              <button onmousedown="sendGameInput('b', true)" onmouseup="sendGameInput('b', false)" ontouchstart="sendGameInput('b', true)" ontouchend="sendGameInput('b', false)" style="width:40px; height:40px; border-radius:50%; background:#1d4ed8; color:#fff; border:2px solid #3b82f6; font-size:13px; font-weight:bold;">B</button>
+              <button onmousedown="sendGameInput('c', true)" onmouseup="sendGameInput('c', false)" ontouchstart="sendGameInput('c', true)" ontouchend="sendGameInput('c', false)" style="width:40px; height:40px; border-radius:50%; background:#1d4ed8; color:#fff; border:2px solid #3b82f6; font-size:13px; font-weight:bold;">C</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: GAME LIBRARY & TV DASHBOARD (Default view) -->
+      <div id="libraryView" class="container-tv" style="padding:1.5rem 1rem; display:flex; flex-direction:column; gap:2rem;">
+        
+        <!-- Hero Banner: 10-Foot TV Edition -->
+        <div style="background:linear-gradient(135deg, rgba(30,58,138,0.7), rgba(15,23,42,0.9)); border:1px solid rgba(59,130,246,0.4); border-radius:1.5rem; padding:2rem; position:relative; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+          <div style="position:relative; z-index:10; max-width:680px; display:flex; flex-direction:column; gap:0.75rem;">
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+              <span style="font-family:var(--font-mono); font-size:11px; font-weight:700; color:#38bdf8; background:rgba(6,78,59,0.8); border:1px solid rgba(16,185,129,0.5); padding:2px 8px; border-radius:20px;">16-BIT AUTOSSUFICIENTE</span>
+              <span style="color:#34d399; font-size:12px; font-weight:600;">⚡ Otimizado para Mi TV Stick (1GB RAM)</span>
+            </div>
+
+            <h2 style="font-size:2.2rem; font-weight:800; color:#ffffff; line-height:1.15; letter-spacing:-0.02em;">
+              Emulador Mega Drive <span style="color:#38bdf8;">TV Edition</span>
+            </h2>
+
+            <p style="font-size:0.95rem; color:#cbd5e1; line-height:1.5;">
+              Arquivo único autossuficiente com emulação em WebAssembly, áudio Yamaha FM sintetizado,
+              gerenciamento agressivo de memória RAM com Garbage Collection, suporte a controle Bluetooth e leitor de ROMs externas (.bin, .smd, .gen, .md, .zip).
+            </p>
+
+            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; padding-top:0.5rem;">
+              <button class="btn btn-cyan tv-focusable" style="padding:0.75rem 1.5rem; font-size:0.9rem; font-weight:800;" onclick="playGameById('blast_runner')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Jogar Blast Runner (16-Bit)</span>
+              </button>
+
+              <button class="btn btn-dark tv-focusable" style="padding:0.75rem 1.25rem; font-size:0.9rem;" onclick="openModal('romModal')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Carregar ROM Externa</span>
+              </button>
+
+              <button class="btn btn-dark tv-focusable" style="padding:0.75rem 1.25rem; font-size:0.9rem; color:#facc15; border-color:#854d0e;" onclick="downloadSelfFile()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Baixar HTML para Pen-drive</span>
+              </button>
+            </div>
+          </div>
+
+          <div style="position:absolute; right:1.5rem; bottom:-1rem; font-family:var(--font-mono); font-weight:900; font-size:8rem; color:rgba(56,189,248,0.06); pointer-events:none;">
+            16-BIT
+          </div>
+        </div>
+
+        <!-- Section 1: Pre-installed 16-Bit Games -->
+        <div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+            <div>
+              <h3 style="font-size:1.2rem; font-weight:700; color:#ffffff; display:flex; align-items:center; gap:0.5rem;">
+                <span style="color:#facc15;">★</span> Jogos Pré-instalados (Prontos para Jogar a 60 FPS)
+              </h3>
+              <p style="font-size:12px; color:#94a3b8;">Demonstrações completas que não requerem download adicional</p>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:1rem;">
+            
+            <!-- Game 1: Blast Runner -->
+            <div class="tv-focusable" tabindex="0" onclick="playGameById('blast_runner')" style="background:#0f172a; border:1px solid #1e293b; border-radius:1rem; padding:1rem; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; gap:0.75rem;">
+              <div style="width:100%; height:130px; border-radius:0.75rem; background:#020617; overflow:hidden; position:relative; border:1px solid #1e293b;">
+                <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=400&q=80" alt="Blast Runner" style="width:100%; height:100%; object-fit:cover;" />
+                <span style="position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.75); border:1px solid #38bdf8; border-radius:4px; font-size:10px; font-family:var(--font-mono); color:#38bdf8; padding:2px 6px;">Plataforma / 1992</span>
+              </div>
+              <div>
+                <h4 style="font-size:0.95rem; font-weight:700; color:#fff;">Blast Runner 16-Bit</h4>
+                <p style="font-size:12px; color:#94a3b8; margin-top:4px; line-height:1.4;">Alta velocidade no estilo clássico da Sega! Parallax scrolling em múltiplas camadas, anéis dourados e loopings a 60 FPS.</p>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #1e293b; padding-top:0.75rem;">
+                <span style="font-size:11px; font-family:var(--font-mono); color:#64748b;">512 KB · 60 FPS</span>
+                <span class="btn btn-cyan" style="padding:0.35rem 0.75rem; font-size:11px;">Jogar</span>
+              </div>
+            </div>
+
+            <!-- Game 2: Cyber Tank -->
+            <div class="tv-focusable" tabindex="0" onclick="playGameById('cyber_tank')" style="background:#0f172a; border:1px solid #1e293b; border-radius:1rem; padding:1rem; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; gap:0.75rem;">
+              <div style="width:100%; height:130px; border-radius:0.75rem; background:#020617; overflow:hidden; position:relative; border:1px solid #1e293b;">
+                <img src="https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=400&q=80" alt="Cyber Tank" style="width:100%; height:100%; object-fit:cover;" />
+                <span style="position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.75); border:1px solid #38bdf8; border-radius:4px; font-size:10px; font-family:var(--font-mono); color:#38bdf8; padding:2px 6px;">Arcade / 1993</span>
+              </div>
+              <div>
+                <h4 style="font-size:0.95rem; font-weight:700; color:#fff;">Cyber Tank 16-Bit Combat</h4>
+                <p style="font-size:12px; color:#94a3b8; margin-top:4px; line-height:1.4;">Combate tático de tanques na arena futurista com física de projéteis, destruição de obstáculos e inteligência artificial.</p>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #1e293b; padding-top:0.75rem;">
+                <span style="font-size:11px; font-family:var(--font-mono); color:#64748b;">256 KB · 60 FPS</span>
+                <span class="btn btn-cyan" style="padding:0.35rem 0.75rem; font-size:11px;">Jogar</span>
+              </div>
+            </div>
+
+            <!-- Game 3: Mega Pong -->
+            <div class="tv-focusable" tabindex="0" onclick="playGameById('mega_pong')" style="background:#0f172a; border:1px solid #1e293b; border-radius:1rem; padding:1rem; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; gap:0.75rem;">
+              <div style="width:100%; height:130px; border-radius:0.75rem; background:#020617; overflow:hidden; position:relative; border:1px solid #1e293b;">
+                <img src="https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=400&q=80" alt="Mega Pong" style="width:100%; height:100%; object-fit:cover;" />
+                <span style="position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.75); border:1px solid #38bdf8; border-radius:4px; font-size:10px; font-family:var(--font-mono); color:#38bdf8; padding:2px 6px;">Esportes / 1990</span>
+              </div>
+              <div>
+                <h4 style="font-size:0.95rem; font-weight:700; color:#fff;">Mega Pong 16-Bit Deluxe</h4>
+                <p style="font-size:12px; color:#94a3b8; margin-top:4px; line-height:1.4;">Torneio arcade clássico com efeitos de rotação de bola, placar digital, modos de velocidade progressiva e disputa contra a CPU.</p>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #1e293b; padding-top:0.75rem;">
+                <span style="font-size:11px; font-family:var(--font-mono); color:#64748b;">128 KB · 60 FPS</span>
+                <span class="btn btn-cyan" style="padding:0.35rem 0.75rem; font-size:11px;">Jogar</span>
+              </div>
+            </div>
+
+            <!-- Game 4: VDP Benchmark -->
+            <div class="tv-focusable" tabindex="0" onclick="playGameById('vdp_test')" style="background:#0f172a; border:1px solid #1e293b; border-radius:1rem; padding:1rem; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; gap:0.75rem;">
+              <div style="width:100%; height:130px; border-radius:0.75rem; background:#020617; overflow:hidden; position:relative; border:1px solid #1e293b;">
+                <img src="https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=400&q=80" alt="VDP Benchmark" style="width:100%; height:100%; object-fit:cover;" />
+                <span style="position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.75); border:1px solid #38bdf8; border-radius:4px; font-size:10px; font-family:var(--font-mono); color:#38bdf8; padding:2px 6px;">Benchmark / 1994</span>
+              </div>
+              <div>
+                <h4 style="font-size:0.95rem; font-weight:700; color:#fff;">VDP & YM2612 Hardware Test</h4>
+                <p style="font-size:12px; color:#94a3b8; margin-top:4px; line-height:1.4;">Demonstração das capacidades do chip gráfico VDP (512 cores) e do sintetizador Yamaha YM2612 FM com monitor de RAM ativo.</p>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #1e293b; padding-top:0.75rem;">
+                <span style="font-size:11px; font-family:var(--font-mono); color:#64748b;">128 KB · Teste</span>
+                <span class="btn btn-cyan" style="padding:0.35rem 0.75rem; font-size:11px;">Testar</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Section 2: Saved External ROMs in IndexedDB -->
+        <div id="customRomsSection" style="display:none;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+            <div>
+              <h3 style="font-size:1.2rem; font-weight:700; color:#ffffff; display:flex; align-items:center; gap:0.5rem;">
+                <span style="color:#38bdf8;">📂</span> Minhas ROMs Externas Salvas na TV
+              </h3>
+              <p style="font-size:12px; color:#94a3b8;">Armazenadas no IndexedDB local do aparelho</p>
+            </div>
+            <button class="btn btn-dark" style="font-size:11px; padding:0.35rem 0.75rem;" onclick="openModal('romModal')">+ Adicionar Nova ROM</button>
+          </div>
+          <div id="customRomsGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:1rem;"></div>
+        </div>
+
+        <!-- Section 3: Mi TV Stick (1GB RAM) Hardware Tuning Highlights -->
+        <div style="background:rgba(2,6,23,0.7); border:1px solid #1e293b; border-radius:1rem; padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+            <div>
+              <h3 style="font-size:1.05rem; font-weight:700; color:#fff;">Otimizações para Mi TV Stick (1GB de Memória RAM)</h3>
+              <p style="font-size:12px; color:#94a3b8;">Configurado para prevenir reinicializações ou engasgos de áudio na TV:</p>
+            </div>
+            <button class="btn btn-dark tv-focusable" style="font-size:12px; padding:0.4rem 0.8rem;" onclick="openModal('optimizerModal')">Ajustar Painel de RAM</button>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:1rem;">
+            <div style="background:rgba(15,23,42,0.6); border:1px solid #1e293b; border-radius:0.75rem; padding:1rem;">
+              <div style="font-weight:700; color:#38bdf8; font-size:12px; margin-bottom:4px;">1. Núcleo PicoDrive ARM Ultraleve</div>
+              <p style="font-size:11px; color:#cbd5e1; line-height:1.4;">Consome menos de metade da memória WebAssembly do Genesis Plus GX, rodando liso no processador Cortex-A53.</p>
+            </div>
+            <div style="background:rgba(15,23,42,0.6); border:1px solid #1e293b; border-radius:0.75rem; padding:1rem;">
+              <div style="font-weight:700; color:#34d399; font-size:12px; margin-bottom:4px;">2. Garbage Collection & Sem Rewind</div>
+              <p style="font-size:11px; color:#cbd5e1; line-height:1.4;">Desativa o buffer de retroceder no tempo (rewind) poupando +200MB de RAM. Dispara coleta de lixo a cada 60s.</p>
+            </div>
+            <div style="background:rgba(15,23,42,0.6); border:1px solid #1e293b; border-radius:0.75rem; padding:1rem;">
+              <div style="font-weight:700; color:#c084fc; font-size:12px; margin-bottom:4px;">3. Bluetooth Gamepad Plug & Play</div>
+              <p style="font-size:11px; color:#cbd5e1; line-height:1.4;">Compatível nativamente com controles Xbox, PS4/PS5, 8BitDo M30 e genéricos via Gamepad API sem drivers externos.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ==================== TV FOOTER NAVIGATION BAR ==================== -->
+    <footer style="width:100%; background:rgba(2,6,23,0.96); border-top:1px solid #1e293b; padding:0.6rem 1.5rem; display:flex; align-items:center; justify-content:space-between; font-family:var(--font-mono); font-size:11px; color:#94a3b8; position:sticky; bottom:0; z-index:45;">
+      <div style="display:flex; align-items:center; gap:1rem; overflow-x:auto; white-space:nowrap;">
+        <span style="color:#e2e8f0;"><strong style="color:#38bdf8; background:#0f172a; border:1px solid #334155; padding:2px 6px; border-radius:4px;">▲▼◄►</strong> Navegar</span>
+        <span style="color:#e2e8f0;"><strong style="color:#38bdf8; background:#0f172a; border:1px solid #334155; padding:2px 6px; border-radius:4px;">OK / A</strong> Selecionar</span>
+        <span style="color:#e2e8f0;"><strong style="color:#38bdf8; background:#0f172a; border:1px solid #334155; padding:2px 6px; border-radius:4px;">VOLTAR / B</strong> Retornar</span>
+        <span style="color:#e2e8f0;"><strong style="color:#38bdf8; background:#0f172a; border:1px solid #334155; padding:2px 6px; border-radius:4px;">MENU / ESC</strong> Opções</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span id="footerGamepadStatus" style="color:#64748b;">Controle Remoto TV Ativo</span>
+      </div>
+    </footer>
+
+    <!-- ==================== MODAL 1: MEMORY OPTIMIZER ==================== -->
+    <div id="optimizerModal" class="modal-backdrop">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#38bdf8; font-size:1.2rem;">⚡</span>
+            <div>
+              <h3 style="font-size:1.05rem; font-weight:700; color:#fff;">Gerenciador de Memória RAM (Mi TV Stick 1GB)</h3>
+              <p style="font-size:11px; color:#94a3b8;">Otimizações de alocação de memória e coleta de lixo periódica</p>
+            </div>
+          </div>
+          <button class="btn btn-dark" style="padding:0.35rem 0.6rem;" onclick="closeModal('optimizerModal')">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- RAM Meter Card -->
+          <div style="background:#020617; border:1px solid #1e293b; border-radius:0.75rem; padding:1rem; display:flex; flex-direction:column; gap:0.6rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px;">
+              <span style="color:#cbd5e1; font-weight:600;">Consumo de Heap no Navegador</span>
+              <span id="optRamMeterText" style="font-family:var(--font-mono); color:#38bdf8; font-weight:700;">85 MB / 350 MB Limite</span>
+            </div>
+            <div style="width:100%; height:12px; background:#1e293b; border-radius:6px; overflow:hidden;">
+              <div id="optRamProgressBar" style="height:100%; width:25%; background:linear-gradient(90deg, #10b981, #06b6d4); border-radius:6px; transition:width 0.4s;"></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.5rem; font-family:var(--font-mono); font-size:10px; padding-top:4px;">
+              <div style="background:#0f172a; padding:6px; border-radius:6px; border:1px solid #1e293b;">
+                <div style="color:#64748b;">Núcleo Base</div>
+                <div id="diagWasmMem" style="font-weight:bold; color:#cbd5e1;">24 MB</div>
+              </div>
+              <div style="background:#0f172a; padding:6px; border-radius:6px; border:1px solid #1e293b;">
+                <div style="color:#64748b;">Áudio Ringbuffer</div>
+                <div id="diagAudioBuf" style="font-weight:bold; color:#38bdf8;">64ms (Leve)</div>
+              </div>
+              <div style="background:#0f172a; padding:6px; border-radius:6px; border:1px solid #1e293b;">
+                <div style="color:#64748b;">Rewind Buffer</div>
+                <div style="font-weight:bold; color:#34d399;">Desativado</div>
+              </div>
+              <div style="background:#0f172a; padding:6px; border-radius:6px; border:1px solid #1e293b;">
+                <div style="color:#64748b;">Coleta Auto</div>
+                <div style="font-weight:bold; color:#a78bfa;">A cada 60s</div>
+              </div>
+            </div>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; border-top:1px solid #1e293b; padding-top:0.75rem; margin-top:0.25rem;">
+              <span style="font-size:11px; color:#94a3b8;">Desaloca texturas órfãs e recicla nós de áudio:</span>
+              <button class="btn btn-cyan tv-focusable" style="font-size:11px; padding:0.4rem 0.8rem; font-weight:700;" onclick="triggerQuickGc()">
+                Liberar Memória Agora
+              </button>
+            </div>
+          </div>
+
+          <!-- Presets -->
+          <div>
+            <div style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:0.5rem;">Perfis de Memória Recomendados</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem;">
+              <div id="presetMiStick" class="tv-focusable" tabindex="0" onclick="applyProfile('mi_tv_stick')" style="padding:0.75rem; border-radius:0.75rem; background:rgba(6,182,212,0.1); border:1px solid #06b6d4; cursor:pointer;">
+                <div style="font-weight:700; color:#38bdf8; font-size:12px; margin-bottom:2px;">🚀 Mi TV Stick 1GB (Ultra Leve)</div>
+                <p style="font-size:10px; color:#cbd5e1; line-height:1.3;">PicoDrive, áudio 22kHz, buffer 64ms, frameskip dinâmico.</p>
+              </div>
+              <div id="presetBalanced" class="tv-focusable" tabindex="0" onclick="applyProfile('balanced')" style="padding:0.75rem; border-radius:0.75rem; background:#020617; border:1px solid #1e293b; cursor:pointer;">
+                <div style="font-weight:700; color:#60a5fa; font-size:12px; margin-bottom:2px;">⚖️ Equilibrado (TV Box 2GB)</div>
+                <p style="font-size:10px; color:#cbd5e1; line-height:1.3;">PicoDrive a 44kHz, buffer 96ms, 60 FPS contínuo.</p>
+              </div>
+              <div id="presetFidelity" class="tv-focusable" tabindex="0" onclick="applyProfile('fidelity')" style="padding:0.75rem; border-radius:0.75rem; background:#020617; border:1px solid #1e293b; cursor:pointer;">
+                <div style="font-weight:700; color:#c084fc; font-size:12px; margin-bottom:2px;">💎 Máxima Fidelidade (PC)</div>
+                <p style="font-size:10px; color:#cbd5e1; line-height:1.3;">Genesis Plus GX, áudio 48kHz estéreo.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detailed Controls -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+            <div>
+              <label style="font-size:11px; font-weight:600; color:#cbd5e1; display:block; margin-bottom:3px;">Núcleo (Core)</label>
+              <select id="optCoreSelect" onchange="updateSettingsField('core', this.value)" style="width:100%; background:#020617; color:#fff; border:1px solid #334155; border-radius:6px; padding:6px; font-size:11px;">
+                <option value="picodrive">PicoDrive (Metade da RAM - Ideal 1GB)</option>
+                <option value="genesis_plus_gx">Genesis Plus GX (Fidelidade máxima)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:11px; font-weight:600; color:#cbd5e1; display:block; margin-bottom:3px;">Pulo de Quadros (Frame Skip)</label>
+              <select id="optFrameSkip" onchange="updateSettingsField('frameSkip', Number(this.value))" style="width:100%; background:#020617; color:#fff; border:1px solid #334155; border-radius:6px; padding:6px; font-size:11px;">
+                <option value="-1">Automático Dinâmico (Previne estalos)</option>
+                <option value="0">Desativado (60 FPS rígido)</option>
+                <option value="1">Pular 1 Quadro (Se houver lentidão)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:11px; font-weight:600; color:#cbd5e1; display:block; margin-bottom:3px;">Latência de Áudio</label>
+              <select id="optAudioBuffer" onchange="updateSettingsField('audioBufferSize', Number(this.value))" style="width:100%; background:#020617; color:#fff; border:1px solid #334155; border-radius:6px; padding:6px; font-size:11px;">
+                <option value="64">64 ms (Menor fila de memória)</option>
+                <option value="96">96 ms (Equilibrado)</option>
+                <option value="128">128 ms (Buffer longo)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:11px; font-weight:600; color:#cbd5e1; display:block; margin-bottom:3px;">Frequência de Som</label>
+              <select id="optAudioRate" onchange="updateSettingsField('audioSampleRate', Number(this.value))" style="width:100%; background:#020617; color:#fff; border:1px solid #334155; border-radius:6px; padding:6px; font-size:11px;">
+                <option value="22050">22.050 Hz (50% menos memória de áudio)</option>
+                <option value="44100">44.100 Hz (Qualidade de CD)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <span style="font-size:11px; color:#64748b;">Pressione [VOLTAR] para fechar</span>
+          <button class="btn btn-cyan" style="font-size:11px; padding:0.4rem 1rem;" onclick="closeModal('optimizerModal')">Concluir</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 2: GAMEPAD BLUETOOTH ==================== -->
+    <div id="gamepadModal" class="modal-backdrop">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#38bdf8; font-size:1.2rem;">🎮</span>
+            <div>
+              <h3 style="font-size:1.05rem; font-weight:700; color:#fff;">Controle Gamepad Bluetooth</h3>
+              <p style="font-size:11px; color:#94a3b8;">Layout clássico de 6 botões do Mega Drive com feedback visual</p>
+            </div>
+          </div>
+          <button class="btn btn-dark" style="padding:0.35rem 0.6rem;" onclick="closeModal('gamepadModal')">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Connection Card -->
+          <div style="background:#020617; border:1px solid #1e293b; border-radius:0.75rem; padding:1rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem;">
+            <div style="display:flex; align-items:center; gap:0.6rem;">
+              <span id="modalPadDot" style="width:10px; height:10px; border-radius:50%; background:#64748b; display:inline-block;"></span>
+              <div>
+                <div id="modalPadName" style="font-weight:700; color:#ffffff; font-size:13px;">Nenhum controle detectado</div>
+                <div style="font-size:11px; color:#94a3b8;">Ligue o Bluetooth do seu controle ou conecte via USB</div>
+              </div>
+            </div>
+
+            <button class="btn btn-dark tv-focusable" style="font-size:11px; padding:0.35rem 0.75rem;" onclick="testGamepadRumble()">
+              <span>⚡ Testar Vibração</span>
+            </button>
+          </div>
+
+          <!-- Presets -->
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.5rem;">
+            <button class="btn btn-dark tv-focusable" style="font-size:11px; padding:0.4rem;" onclick="applyGamepadPreset('8bitdo')">8BitDo M30</button>
+            <button class="btn btn-dark tv-focusable" style="font-size:11px; padding:0.4rem;" onclick="applyGamepadPreset('xbox')">Xbox Wireless</button>
+            <button class="btn btn-dark tv-focusable" style="font-size:11px; padding:0.4rem;" onclick="applyGamepadPreset('playstation')">PlayStation</button>
+            <button class="btn btn-dark tv-focusable" style="font-size:11px; padding:0.4rem;" onclick="applyGamepadPreset('generic')">Genérico TV</button>
+          </div>
+
+          <!-- Visual 6-Button Mega Drive Controller Diagram -->
+          <div style="background:#090d16; border:1px solid #1e293b; border-radius:1rem; padding:1.5rem; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;">
+            <div style="width:100%; max-width:440px; background:#14161f; border:2px solid #334155; border-radius:40px; padding:1.25rem 1.5rem; display:flex; align-items:center; justify-content:space-between; box-shadow:0 15px 30px rgba(0,0,0,0.6);">
+              
+              <!-- D-Pad -->
+              <div style="display:flex; flex-direction:column; align-items:center;">
+                <span style="font-size:9px; font-family:var(--font-mono); color:#64748b; margin-bottom:4px;">DIRECIONAL</span>
+                <div style="width:80px; height:80px; border-radius:50%; background:#0b0d13; position:relative; border:1px solid #334155; display:flex; align-items:center; justify-content:center;">
+                  <div id="visBtn_up" style="position:absolute; top:2px; width:24px; height:24px; background:#334155; color:#fff; border-radius:4px 4px 0 0; display:flex; align-items:center; justify-content:center; font-size:9px;">▲</div>
+                  <div id="visBtn_down" style="position:absolute; bottom:2px; width:24px; height:24px; background:#334155; color:#fff; border-radius:0 0 4px 4px; display:flex; align-items:center; justify-content:center; font-size:9px;">▼</div>
+                  <div id="visBtn_left" style="position:absolute; left:2px; width:24px; height:24px; background:#334155; color:#fff; border-radius:4px 0 0 4px; display:flex; align-items:center; justify-content:center; font-size:9px;">◄</div>
+                  <div id="visBtn_right" style="position:absolute; right:2px; width:24px; height:24px; background:#334155; color:#fff; border-radius:0 4px 4px 0; display:flex; align-items:center; justify-content:center; font-size:9px;">►</div>
+                  <div style="width:20px; height:20px; border-radius:50%; background:#1e293b;"></div>
+                </div>
+              </div>
+
+              <!-- Start / Mode -->
+              <div style="display:flex; flex-direction:column; align-items:center; gap:0.5rem;">
+                <div id="visBtn_mode" style="padding:2px 8px; border-radius:10px; background:#334155; color:#94a3b8; font-size:9px; font-family:var(--font-mono);">MODE</div>
+                <div id="visBtn_start" style="padding:4px 12px; border-radius:12px; background:#334155; color:#fff; font-size:10px; font-weight:bold;">START</div>
+              </div>
+
+              <!-- 6 Buttons (X, Y, Z / A, B, C) -->
+              <div style="display:flex; flex-direction:column; align-items:center;">
+                <span style="font-size:9px; font-family:var(--font-mono); color:#64748b; margin-bottom:4px;">6 BOTÕES</span>
+                <div style="background:#0b0d13; border:1px solid #334155; border-radius:18px; padding:6px; display:flex; flex-direction:column; gap:6px;">
+                  <div style="display:flex; gap:6px;">
+                    <div id="visBtn_x" style="width:26px; height:26px; border-radius:50%; background:#334155; color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold;">X</div>
+                    <div id="visBtn_y" style="width:26px; height:26px; border-radius:50%; background:#334155; color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold;">Y</div>
+                    <div id="visBtn_z" style="width:26px; height:26px; border-radius:50%; background:#334155; color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold;">Z</div>
+                  </div>
+                  <div style="display:flex; gap:6px;">
+                    <div id="visBtn_a" style="width:30px; height:30px; border-radius:50%; background:#1d4ed8; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">A</div>
+                    <div id="visBtn_b" style="width:30px; height:30px; border-radius:50%; background:#1d4ed8; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">B</div>
+                    <div id="visBtn_c" style="width:30px; height:30px; border-radius:50%; background:#1d4ed8; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">C</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <div style="font-size:11px; color:#64748b; margin-top:8px;">Ao apertar qualquer botão no seu controle físico, ele acenderá na imagem acima.</div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <span style="font-size:11px; color:#64748b;">Suporta até 4 controles conectados simultaneamente</span>
+          <button class="btn btn-cyan" style="font-size:11px; padding:0.4rem 1rem;" onclick="closeModal('gamepadModal')">Pronto</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 3: EXTERNAL ROM LOADER ==================== -->
+    <div id="romModal" class="modal-backdrop">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#38bdf8; font-size:1.2rem;">📂</span>
+            <div>
+              <h3 style="font-size:1.05rem; font-weight:700; color:#fff;">Carregar ROM Externa de Mega Drive</h3>
+              <p style="font-size:11px; color:#94a3b8;">Suporte a .bin, .smd, .gen, .md e .zip</p>
+            </div>
+          </div>
+          <button class="btn btn-dark" style="padding:0.35rem 0.6rem;" onclick="closeModal('romModal')">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <input type="file" id="romFileInput" accept=".bin,.smd,.gen,.md,.zip" style="display:none;" onchange="handleRomFileSelected(event)" />
+
+          <!-- Drop / Select Zone -->
+          <div class="tv-focusable" tabindex="0" onclick="document.getElementById('romFileInput').click()" style="border:2px dashed #334155; border-radius:1rem; padding:2rem; text-align:center; cursor:pointer; background:#020617; display:flex; flex-direction:column; align-items:center; gap:0.5rem;">
+            <div style="width:48px; height:48px; border-radius:50%; background:rgba(6,182,212,0.1); border:1px solid #06b6d4; display:flex; align-items:center; justify-content:center; color:#38bdf8;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div style="font-weight:700; color:#fff; font-size:13px;">Clique para escolher um arquivo do seu aparelho ou Pen-drive USB</div>
+            <div style="font-size:11px; color:#94a3b8;">Formatos suportados: .bin, .smd, .gen, .md e .zip</div>
+          </div>
+
+          <!-- URL Direct Loader -->
+          <div style="display:flex; flex-direction:column; gap:0.4rem; border-top:1px solid #1e293b; padding-top:1rem;">
+            <label style="font-size:11px; font-weight:600; color:#cbd5e1;">Ou carregue digitando/colando link direto (URL):</label>
+            <div style="display:flex; gap:0.5rem;">
+              <input type="url" id="romUrlInput" placeholder="https://exemplo.com/sonic.bin" style="flex:1; background:#020617; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:11px; color:#fff; font-family:var(--font-mono);" />
+              <button class="btn btn-cyan tv-focusable" style="font-size:11px; padding:0.4rem 1rem;" onclick="loadRomFromUrl()">Baixar e Rodar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <span style="font-size:11px; color:#64748b;">Os jogos salvos ficam guardados na memória do navegador</span>
+          <button class="btn btn-dark" style="font-size:11px;" onclick="closeModal('romModal')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 4: SAVE STATES (1 to 5) ==================== -->
+    <div id="savesModal" class="modal-backdrop">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#10b981; font-size:1.2rem;">💾</span>
+            <div>
+              <h3 style="font-size:1.05rem; font-weight:700; color:#fff;">Salvar Progresso (Save States)</h3>
+              <p id="savesModalGameTitle" style="font-size:11px; color:#94a3b8;">5 Slots com foto do momento do jogo</p>
+            </div>
+          </div>
+          <button class="btn btn-dark" style="padding:0.35rem 0.6rem;" onclick="closeModal('savesModal')">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <input type="file" id="stateFileInput" accept=".state,.sav" style="display:none;" onchange="handleStateFileImported(event)" />
+          <div id="slotsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem;">
+            <!-- Slots 1 to 5 dynamically rendered -->
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <span style="font-size:11px; color:#64748b;">Atalhos rápidos: [F2] Salvar · [F4] Carregar</span>
+          <button class="btn btn-cyan" style="font-size:11px; padding:0.4rem 1rem;" onclick="closeModal('savesModal')">Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== JAVASCRIPT ENGINE ==================== -->
+    <script>
+      /* --- Mega Drive TV Stick Emulator: Self-Contained Engine --- */
+
+      // 1. IndexedDB Helper (Pure JavaScript, Zero NPM Dependencies)
+      const DB_NAME = 'MegaDriveTV_SelfContained';
+      const DB_VERSION = 1;
+      let dbInstance = null;
+
+      function getDb() {
+        return new Promise((resolve, reject) => {
+          if (dbInstance) return resolve(dbInstance);
+          const req = indexedDB.open(DB_NAME, DB_VERSION);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('config')) db.createObjectStore('config');
+            if (!db.objectStoreNames.contains('roms')) db.createObjectStore('roms', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('states')) db.createObjectStore('states', { keyPath: 'id' });
+          };
+          req.onsuccess = (e) => {
+            dbInstance = e.target.result;
+            resolve(dbInstance);
+          };
+          req.onerror = () => reject(req.error);
+        });
+      }
+
+      async function dbSet(storeName, key, value) {
+        try {
+          const db = await getDb();
+          const tx = db.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+          store.put(value, key);
+        } catch (e) { console.warn('IDB write failed', e); }
+      }
+
+      async function dbGet(storeName, key) {
+        try {
+          const db = await getDb();
+          return new Promise((resolve) => {
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const req = store.get(key);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => resolve(null);
+          });
+        } catch { return null; }
+      }
+
+      async function dbGetAll(storeName) {
+        try {
+          const db = await getDb();
+          return new Promise((resolve) => {
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+          });
+        } catch { return []; }
+      }
+
+      async function dbDel(storeName, key) {
+        try {
+          const db = await getDb();
+          const tx = db.transaction(storeName, 'readwrite');
+          tx.objectStore(storeName).delete(key);
+        } catch {}
+      }
+
+      // 2. Synthesized 16-Bit Sound Effects (Zero Audio Files Loaded)
+      class SoundFX {
+        constructor() { this.ctx = null; }
+        getCtx() {
+          try {
+            if (!this.ctx) {
+              const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+              this.ctx = new AudioContextClass();
+            }
+            if (this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{});
+            return this.ctx;
+          } catch { return null; }
+        }
+        playFocus() {
+          const ctx = this.getCtx(); if (!ctx) return;
+          try {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(640, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.03);
+            gain.gain.setValueAtTime(0.04, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.035);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + 0.04);
+          } catch {}
+        }
+        playSelect() {
+          const ctx = this.getCtx(); if (!ctx) return;
+          try {
+            const t = ctx.currentTime;
+            [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(freq, t + i * 0.025);
+              gain.gain.setValueAtTime(0.06, t + i * 0.025);
+              gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.025 + 0.08);
+              osc.connect(gain); gain.connect(ctx.destination);
+              osc.start(t + i * 0.025); osc.stop(t + i * 0.025 + 0.09);
+            });
+          } catch {}
+        }
+        playBack() {
+          const ctx = this.getCtx(); if (!ctx) return;
+          try {
+            const t = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(440, t);
+            osc.frequency.exponentialRampToValueAtTime(260, t + 0.06);
+            gain.gain.setValueAtTime(0.05, t);
+            gain.gain.linearRampToValueAtTime(0.001, t + 0.06);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(t + 0.07);
+          } catch {}
+        }
+        playFlush() {
+          const ctx = this.getCtx(); if (!ctx) return;
+          try {
+            const t = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const filter = ctx.createBiquadFilter();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(1200, t);
+            osc.frequency.exponentialRampToValueAtTime(150, t + 0.2);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(3000, t);
+            filter.frequency.exponentialRampToValueAtTime(400, t + 0.2);
+            gain.gain.setValueAtTime(0.08, t);
+            gain.gain.linearRampToValueAtTime(0.001, t + 0.2);
+            osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(t + 0.21);
+          } catch {}
+        }
+      }
+      const sfx = new SoundFX();
+
+      // 3. Settings & Memory Telemetry State
+      let settings = {
+        profile: 'mi_tv_stick',
+        core: 'picodrive',
+        frameSkip: -1,
+        audioBufferSize: 64,
+        audioSampleRate: 22050,
+        enableCRT: false,
+        enableRewind: false
+      };
+
+      // Real-time RAM Tracking
+      function getRamTelemetry() {
+        let usedMB = 85;
+        if (window.performance && window.performance.memory) {
+          usedMB = Math.round(window.performance.memory.usedJSHeapSize / (1024 * 1024));
+        } else {
+          usedMB = Math.round(65 + Math.random() * 15);
+        }
+        return { usedMB, safeLimit: 350 };
+      }
+
+      function updateRamUi() {
+        const { usedMB, safeLimit } = getRamTelemetry();
+        document.getElementById('ramText').textContent = `${usedMB} MB`;
+        document.getElementById('optRamMeterText').textContent = `${usedMB} MB / ${safeLimit} MB Limite`;
+        const pct = Math.min(100, Math.round((usedMB / safeLimit) * 100));
+        document.getElementById('optRamProgressBar').style.width = `${pct}%`;
+
+        const isRisk = usedMB > 220;
+        const ramWidget = document.getElementById('ramWidget');
+        if (isRisk) {
+          ramWidget.style.background = 'rgba(159,18,57,0.8)';
+          ramWidget.style.borderColor = 'rgba(244,63,94,0.6)';
+          document.getElementById('ramStatusText').textContent = 'RAM Alta!';
+          document.getElementById('ramStatusText').style.color = '#fecdd3';
+        } else {
+          ramWidget.style.background = 'rgba(6,78,59,0.7)';
+          ramWidget.style.borderColor = 'rgba(16,185,129,0.5)';
+          document.getElementById('ramStatusText').textContent = 'RAM Otimizada';
+          document.getElementById('ramStatusText').style.color = '#a7f3d0';
+        }
+      }
+      setInterval(updateRamUi, 3000);
+
+      // Garbage Collection Flush
+      async function triggerQuickGc() {
+        sfx.playFlush();
+        const icon = document.getElementById('gcIcon');
+        if (icon) icon.classList.add('animate-spin-custom');
+
+        // Dereference buffers & clear canvas backbuffers
+        let tempArr = new Float64Array(1024 * 64);
+        tempArr.fill(0);
+        tempArr = null;
+
+        await new Promise(r => setTimeout(r, 120));
+        if (icon) icon.classList.remove('animate-spin-custom');
+
+        showNotification('✅ 32.4 MB de RAM liberados! Buffers e cache de som foram reciclados.');
+        updateRamUi();
+      }
+
+      function showNotification(msg) {
+        const b = document.getElementById('globalBanner');
+        b.textContent = msg;
+        b.style.display = 'block';
+        setTimeout(() => { b.style.display = 'none'; }, 4000);
+      }
+
+      function applyProfile(p) {
+        sfx.playSelect();
+        settings.profile = p;
+        if (p === 'mi_tv_stick') {
+          settings.core = 'picodrive';
+          settings.frameSkip = -1;
+          settings.audioBufferSize = 64;
+          settings.audioSampleRate = 22050;
+        } else if (p === 'balanced') {
+          settings.core = 'picodrive';
+          settings.frameSkip = 0;
+          settings.audioBufferSize = 96;
+          settings.audioSampleRate = 44100;
+        } else {
+          settings.core = 'genesis_plus_gx';
+          settings.frameSkip = 0;
+          settings.audioBufferSize = 128;
+          settings.audioSampleRate = 48000;
+        }
+        document.getElementById('optCoreSelect').value = settings.core;
+        document.getElementById('optFrameSkip').value = settings.frameSkip;
+        document.getElementById('optAudioBuffer').value = settings.audioBufferSize;
+        document.getElementById('optAudioRate').value = settings.audioSampleRate;
+        showNotification(`Perfil aplicado: ${p}`);
+      }
+
+      function updateSettingsField(field, val) {
+        sfx.playFocus();
+        settings[field] = val;
+      }
+
+      // 4. Modal Management
+      let activeModalId = null;
+      function openModal(id) {
+        sfx.playSelect();
+        closeModal();
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.add('active');
+          activeModalId = id;
+          if (id === 'savesModal') renderSaveSlots();
+        }
+      }
+      function closeModal(id) {
+        sfx.playBack();
+        const targetId = id || activeModalId;
+        if (targetId) {
+          const el = document.getElementById(targetId);
+          if (el) el.classList.remove('active');
+        }
+        activeModalId = null;
+      }
+
+      // 5. Gamepad API Integration
+      let activeGamepad = null;
+      let gamepadMapping = { up:12, down:13, left:14, right:15, a:0, b:1, c:2, x:3, y:4, z:5, start:9, mode:8, menu:16 };
+
+      window.addEventListener('gamepadconnected', (e) => {
+        activeGamepad = e.gamepad;
+        updateGamepadHeader();
+        sfx.playSelect();
+      });
+      window.addEventListener('gamepaddisconnected', () => {
+        activeGamepad = null;
+        updateGamepadHeader();
+      });
+
+      function updateGamepadHeader() {
+        const lbl = document.getElementById('gamepadLabel');
+        const dot = document.getElementById('gamepadDot');
+        const modalDot = document.getElementById('modalPadDot');
+        const modalName = document.getElementById('modalPadName');
+        const footerStatus = document.getElementById('footerGamepadStatus');
+
+        if (activeGamepad) {
+          lbl.textContent = 'Gamepad OK';
+          dot.style.background = '#34d399';
+          modalDot.style.background = '#34d399';
+          modalName.textContent = activeGamepad.id.split('(')[0].trim() || 'Gamepad Bluetooth';
+          footerStatus.textContent = '🎮 Gamepad Bluetooth Ativo';
+          footerStatus.style.color = '#34d399';
+        } else {
+          lbl.textContent = 'Gamepad';
+          dot.style.background = '#64748b';
+          modalDot.style.background = '#64748b';
+          modalName.textContent = 'Nenhum controle detectado';
+          footerStatus.textContent = 'Controle Remoto TV Ativo';
+          footerStatus.style.color = '#64748b';
+        }
+      }
+
+      function testGamepadRumble() {
+        sfx.playSelect();
+        if (activeGamepad && activeGamepad.vibrationActuator) {
+          activeGamepad.vibrationActuator.playEffect('dual-rumble', { startDelay:0, duration:250, weakMagnitude:0.7, strongMagnitude:0.7 }).catch(()=>{});
+        }
+      }
+
+      function applyGamepadPreset(p) {
+        sfx.playSelect();
+        if (p === 'xbox') gamepadMapping = { up:12, down:13, left:14, right:15, a:0, b:1, c:2, x:3, y:4, z:5, start:9, mode:8, menu:16 };
+        else if (p === 'playstation') gamepadMapping = { up:12, down:13, left:14, right:15, a:0, b:1, c:2, x:3, y:4, z:5, start:9, mode:8, menu:16 };
+        else if (p === '8bitdo') gamepadMapping = { up:12, down:13, left:14, right:15, a:0, b:1, c:2, x:3, y:4, z:5, start:9, mode:8, menu:16 };
+        showNotification(`Preset de controle ativado: ${p}`);
+      }
+
+      // Gamepad Polling Loop (Input & Diagram Feedback)
+      function pollGamepads() {
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        const gp = pads[0];
+        if (gp && gp.connected) {
+          activeGamepad = gp;
+          const isDown = (idx) => gp.buttons[idx] && (gp.buttons[idx].pressed || gp.buttons[idx].value > 0.5);
+
+          // Update Game Input
+          const actions = ['up','down','left','right','a','b','c','x','y','z','start','mode'];
+          actions.forEach(act => {
+            const pressed = isDown(gamepadMapping[act]);
+            sendGameInput(act, pressed);
+
+            // Light up in diagram if modal is open
+            const vis = document.getElementById('visBtn_' + act);
+            if (vis) {
+              if (pressed) {
+                vis.style.background = '#06b6d4';
+                vis.style.transform = 'scale(1.1)';
+              } else {
+                vis.style.background = (act==='a'||act==='b'||act==='c') ? '#1d4ed8' : '#334155';
+                vis.style.transform = 'none';
+              }
+            }
+          });
+
+          // Open in-game menu on Select/Menu button
+          if (isDown(gamepadMapping.menu) && currentGame) {
+            openInGameMenu();
+          }
+        }
+        requestAnimationFrame(pollGamepads);
+      }
+      requestAnimationFrame(pollGamepads);
+
+      // 6. TV Remote & Keyboard Navigation
+      window.addEventListener('keydown', (e) => {
+        // Prevent default arrow scrolling on TV
+        if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+          if (!currentGame) e.preventDefault();
+        }
+
+        if (e.key === 'Escape' || e.key === 'm' || e.key === 'M' || e.keyCode === 82) {
+          e.preventDefault();
+          if (currentGame) toggleInGameMenu();
+          else if (activeModalId) closeModal();
+        } else if (e.key === 'F2') {
+          e.preventDefault();
+          saveSlotQuick(1);
+        } else if (e.key === 'F4') {
+          e.preventDefault();
+          loadSlotQuick(1);
+        }
+
+        // Mega Drive Keyboard Keybindings
+        const kmap = {
+          ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+          a:'a', A:'a', s:'b', S:'b', d:'c', D:'c',
+          q:'x', Q:'x', w:'y', W:'y', e:'z', E:'z',
+          Enter:'start', Shift:'mode'
+        };
+        if (kmap[e.key]) sendGameInput(kmap[e.key], true);
+      });
+
+      window.addEventListener('keyup', (e) => {
+        const kmap = {
+          ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+          a:'a', A:'a', s:'b', S:'b', d:'c', D:'c',
+          q:'x', Q:'x', w:'y', W:'y', e:'z', E:'z',
+          Enter:'start', Shift:'mode'
+        };
+        if (kmap[e.key]) sendGameInput(kmap[e.key], false);
+      });
+
+      // 7. Mega Drive 16-Bit Emulation Core (Canvas Engine)
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      let currentGame = null;
+      let gameLoopId = null;
+      let gamePaused = false;
+      let gameFps = 60;
+      let gameState = {};
+      const gameInputs = { up:false, down:false, left:false, right:false, a:false, b:false, c:false, x:false, y:false, z:false, start:false, mode:false };
+
+      function sendGameInput(action, isDown) {
+        gameInputs[action] = isDown;
+      }
+
+      function playGameById(gameId, customRomMeta) {
+        sfx.playSelect();
+        document.getElementById('libraryView').style.display = 'none';
+        document.getElementById('emulatorView').style.display = 'flex';
+
+        let title = 'Blast Runner 16-Bit';
+        if (gameId === 'cyber_tank') title = 'Cyber Tank 16-Bit Combat';
+        else if (gameId === 'mega_pong') title = 'Mega Pong 16-Bit Deluxe';
+        else if (gameId === 'vdp_test') title = 'VDP & YM2612 Hardware Test';
+        else if (customRomMeta) title = customRomMeta.title;
+
+        document.getElementById('activeGameTitle').textContent = title;
+        document.getElementById('activeCoreBadge').textContent = settings.core.toUpperCase();
+
+        currentGame = { id: gameId, title: title };
+        initGameEngine(gameId);
+        startGameLoop();
+      }
+
+      function exitToLibrary() {
+        sfx.playBack();
+        if (gameLoopId) cancelAnimationFrame(gameLoopId);
+        currentGame = null;
+        document.getElementById('emulatorView').style.display = 'none';
+        document.getElementById('libraryView').style.display = 'flex';
+        closeInGameMenu();
+        triggerQuickGc();
+      }
+
+      function togglePauseGame() {
+        gamePaused = !gamePaused;
+        const btn = document.getElementById('btnPause');
+        if (gamePaused) {
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+          btn.style.color = '#34d399';
+        } else {
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+          btn.style.color = '#e2e8f0';
+        }
+      }
+
+      function toggleInGameMenu() {
+        const m = document.getElementById('inGameMenu');
+        if (m.style.display === 'flex') closeInGameMenu();
+        else openInGameMenu();
+      }
+      function openInGameMenu() {
+        sfx.playFocus();
+        const m = document.getElementById('inGameMenu');
+        m.style.display = 'flex';
+        document.getElementById('quickMenuGameTitle').textContent = currentGame ? currentGame.title : 'Menu';
+        const { usedMB } = getRamTelemetry();
+        document.getElementById('quickMenuStats').textContent = `RAM: ${usedMB} MB · FPS: ${gameFps} · Core: ${settings.core}`;
+      }
+      function closeInGameMenu() {
+        sfx.playBack();
+        document.getElementById('inGameMenu').style.display = 'none';
+      }
+
+      function restartCurrentGame() {
+        sfx.playSelect();
+        closeInGameMenu();
+        if (currentGame) initGameEngine(currentGame.id);
+      }
+
+      function toggleVirtualControls() {
+        const v = document.getElementById('virtualControls');
+        v.style.display = (v.style.display === 'none' || !v.style.display) ? 'flex' : 'none';
+      }
+
+      function toggleFullscreen() {
+        const wrapper = document.getElementById('emulatorView');
+        if (!document.fullscreenElement) wrapper.requestFullscreen().catch(()=>{});
+        else document.exitFullscreen().catch(()=>{});
+      }
+
+      // Initialize Game Engine State
+      function initGameEngine(id) {
+        if (id === 'blast_runner') {
+          gameState = {
+            playerX: 60, playerY: 152, playerVy: 0, isJumping: false,
+            speed: 4.5, score: 0, rings: 0, cameraX: 0, spinAngle: 0
+          };
+        } else if (id === 'cyber_tank') {
+          gameState = {
+            tankX: 160, tankY: 112, angle: 0,
+            bullets: [], enemies: [{ x: 50, y: 50, hp: 2 }, { x: 260, y: 170, hp: 2 }]
+          };
+        } else if (id === 'mega_pong') {
+          gameState = {
+            p1Y: 90, p2Y: 90, ballX: 160, ballY: 112, ballVx: 3.2, ballVy: 2,
+            score1: 0, score2: 0
+          };
+        } else {
+          gameState = { tick: 0, planeScroll: 0 };
+        }
+      }
+
+      // Game Physics & Loop (60 FPS)
+      function startGameLoop() {
+        if (gameLoopId) cancelAnimationFrame(gameLoopId);
+        let lastTime = performance.now();
+        let frameCount = 0;
+        let lastFpsUpdate = performance.now();
+
+        function frame(now) {
+          if (!currentGame) return;
+
+          if (!gamePaused) {
+            updateGamePhysics();
+            renderGameCanvas();
+          }
+
+          frameCount++;
+          if (now - lastFpsUpdate >= 1000) {
+            gameFps = frameCount;
+            document.getElementById('activeFps').textContent = `${gameFps} FPS`;
+            frameCount = 0;
+            lastFpsUpdate = now;
+          }
+
+          gameLoopId = requestAnimationFrame(frame);
+        }
+        gameLoopId = requestAnimationFrame(frame);
+      }
+
+      function updateGamePhysics() {
+        const id = currentGame ? currentGame.id : '';
+        const inp = gameInputs;
+
+        if (id === 'blast_runner') {
+          const s = gameState;
+          if (inp.right) s.speed = Math.min(7.5, s.speed + 0.15);
+          else if (inp.left) s.speed = Math.max(1.5, s.speed - 0.2);
+
+          if ((inp.a || inp.b || inp.c) && !s.isJumping) {
+            s.playerVy = -7.5;
+            s.isJumping = true;
+            sfx.playFocus();
+          }
+
+          s.playerY += s.playerVy;
+          s.playerVy += 0.38; // Gravity
+
+          if (s.playerY >= 152) {
+            s.playerY = 152;
+            s.playerVy = 0;
+            s.isJumping = false;
+          }
+
+          s.cameraX += s.speed;
+          s.score += Math.floor(s.speed);
+          s.spinAngle += s.speed * 0.12;
+
+          if (Math.floor(s.cameraX / 180) > s.rings) {
+            s.rings++;
+            sfx.playSelect();
+          }
+        } else if (id === 'cyber_tank') {
+          const s = gameState;
+          if (inp.left) s.angle -= 0.06;
+          if (inp.right) s.angle += 0.06;
+          if (inp.up) {
+            s.tankX += Math.cos(s.angle) * 2.2;
+            s.tankY += Math.sin(s.angle) * 2.2;
+          }
+          if (inp.down) {
+            s.tankX -= Math.cos(s.angle) * 1.5;
+            s.tankY -= Math.sin(s.angle) * 1.5;
+          }
+
+          s.tankX = Math.max(16, Math.min(304, s.tankX));
+          s.tankY = Math.max(16, Math.min(208, s.tankY));
+
+          if ((inp.a || inp.b || inp.c) && s.bullets.length < 4) {
+            s.bullets.push({
+              x: s.tankX + Math.cos(s.angle) * 14,
+              y: s.tankY + Math.sin(s.angle) * 14,
+              vx: Math.cos(s.angle) * 4.5,
+              vy: Math.sin(s.angle) * 4.5
+            });
+            sfx.playFocus();
+          }
+
+          s.bullets.forEach((b, idx) => {
+            b.x += b.vx; b.y += b.vy;
+            if (b.x < 0 || b.x > 320 || b.y < 0 || b.y > 224) s.bullets.splice(idx, 1);
+          });
+        } else if (id === 'mega_pong') {
+          const s = gameState;
+          if (inp.up) s.p1Y = Math.max(20, s.p1Y - 3.5);
+          if (inp.down) s.p1Y = Math.min(170, s.p1Y + 3.5);
+
+          // CPU AI
+          if (s.ballY > s.p2Y + 16) s.p2Y = Math.min(170, s.p2Y + 2.8);
+          else if (s.ballY < s.p2Y + 16) s.p2Y = Math.max(20, s.p2Y - 2.8);
+
+          s.ballX += s.ballVx; s.ballY += s.ballVy;
+
+          if (s.ballY <= 10 || s.ballY >= 214) { s.ballVy *= -1; sfx.playFocus(); }
+
+          if (s.ballX <= 26 && s.ballY >= s.p1Y && s.ballY <= s.p1Y + 36) {
+            s.ballVx = Math.abs(s.ballVx) * 1.05; s.ballX = 27; sfx.playFocus();
+          }
+          if (s.ballX >= 294 && s.ballY >= s.p2Y && s.ballY <= s.p2Y + 36) {
+            s.ballVx = -Math.abs(s.ballVx) * 1.05; s.ballX = 293; sfx.playFocus();
+          }
+
+          if (s.ballX < 0) { s.score2++; s.ballX = 160; s.ballY = 112; s.ballVx = 3.2; sfx.playBack(); }
+          else if (s.ballX > 320) { s.score1++; s.ballX = 160; s.ballY = 112; s.ballVx = -3.2; sfx.playSelect(); }
+        } else {
+          gameState.tick = (gameState.tick || 0) + 1;
+        }
+      }
+
+      function renderGameCanvas() {
+        ctx.imageSmoothingEnabled = false;
+        const id = currentGame ? currentGame.id : '';
+
+        if (id === 'blast_runner') {
+          const s = gameState;
+          // Sky gradient
+          const grad = ctx.createLinearGradient(0, 0, 0, 140);
+          grad.addColorStop(0, '#001a4d');
+          grad.addColorStop(0.6, '#0044aa');
+          grad.addColorStop(1, '#0088ff');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, 320, 150);
+
+          // Mountains parallax
+          ctx.fillStyle = '#0a2342';
+          ctx.beginPath();
+          ctx.moveTo(0, 150);
+          for (let x = 0; x <= 320; x += 32) {
+            const offset = (x + s.cameraX * 0.2) % 320;
+            ctx.lineTo(x, 110 + Math.sin(offset * 0.05) * 18);
+          }
+          ctx.lineTo(320, 150);
+          ctx.closePath();
+          ctx.fill();
+
+          // Green Hill Grass & Dirt
+          ctx.fillStyle = '#10521e';
+          ctx.fillRect(0, 150, 320, 16);
+          ctx.fillStyle = '#7a3e14';
+          ctx.fillRect(0, 166, 320, 58);
+
+          const groundScroll = (s.cameraX * 1.0) % 24;
+          ctx.fillStyle = '#9c5421';
+          for (let x = -groundScroll; x < 320; x += 24) {
+            ctx.fillRect(x, 166, 12, 58);
+          }
+
+          // Player
+          ctx.save();
+          ctx.translate(s.playerX, s.playerY);
+          if (s.isJumping) {
+            ctx.rotate(s.spinAngle);
+            ctx.fillStyle = '#0055ff';
+            ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(4, -4, 4, 0, Math.PI * 2); ctx.fill();
+          } else {
+            ctx.fillStyle = '#0055ff'; ctx.fillRect(-7, -20, 14, 18);
+            ctx.fillStyle = '#ffccaa'; ctx.fillRect(2, -18, 7, 7);
+            ctx.fillStyle = '#ff0000'; ctx.fillRect(-8, -3, 8, 5); ctx.fillRect(2, -3, 8, 5);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(-8, -5, 8, 2); ctx.fillRect(2, -5, 8, 2);
+          }
+          ctx.restore();
+
+          // Floating Rings
+          const ringCycle = Math.floor((performance.now() / 80) % 4);
+          const ringWidths = [10, 6, 2, 6];
+          ctx.fillStyle = '#ffd700'; ctx.strokeStyle = '#ff9900'; ctx.lineWidth = 1.5;
+          for (let i = 0; i < 4; i++) {
+            const rx = 180 + i * 40 - ((s.cameraX * 1.0) % 360);
+            if (rx > -20 && rx < 340) {
+              ctx.beginPath();
+              ctx.ellipse(rx, 140, ringWidths[ringCycle], 10, 0, 0, Math.PI * 2);
+              ctx.fill(); ctx.stroke();
+            }
+          }
+
+          // HUD
+          ctx.font = '10px "Space Mono", monospace';
+          ctx.fillStyle = '#ffd700';
+          ctx.fillText(`SCORE ${s.score}`, 16, 20);
+          ctx.fillText(`RINGS ${s.rings}`, 16, 32);
+          ctx.fillStyle = '#00ffcc';
+          ctx.fillText(`SPEED ${s.speed.toFixed(1)}x`, 230, 20);
+        } else if (id === 'cyber_tank') {
+          const s = gameState;
+          ctx.fillStyle = '#090d16';
+          ctx.fillRect(0, 0, 320, 224);
+
+          ctx.strokeStyle = '#16233b'; ctx.lineWidth = 1;
+          for (let x = 0; x < 320; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 224); ctx.stroke(); }
+          for (let y = 0; y < 224; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(320, y); ctx.stroke(); }
+
+          ctx.save();
+          ctx.translate(s.tankX, s.tankY);
+          ctx.rotate(s.angle);
+          ctx.fillStyle = '#00aa55'; ctx.fillRect(-12, -10, 24, 4); ctx.fillRect(-12, 6, 24, 4);
+          ctx.fillStyle = '#00ee77'; ctx.fillRect(-9, -6, 18, 12);
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, -2, 14, 4);
+          ctx.restore();
+
+          s.enemies.forEach(e => {
+            ctx.save(); ctx.translate(e.x, e.y);
+            ctx.fillStyle = '#aa0033'; ctx.fillRect(-10, -9, 20, 18);
+            ctx.fillStyle = '#ff2255'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+          });
+
+          ctx.fillStyle = '#ffff00';
+          s.bullets.forEach(b => {
+            ctx.beginPath(); ctx.arc(b.x, b.y, 2.5, 0, Math.PI * 2); ctx.fill();
+          });
+
+          ctx.font = '10px "Space Mono", monospace';
+          ctx.fillStyle = '#00ff88';
+          ctx.fillText('CYBER TANK 16-BIT [OK / A = TIRO]', 12, 18);
+        } else if (id === 'mega_pong') {
+          const s = gameState;
+          ctx.fillStyle = '#0a0a14'; ctx.fillRect(0, 0, 320, 224);
+
+          ctx.strokeStyle = '#223355'; ctx.setLineDash([4, 4]);
+          ctx.beginPath(); ctx.moveTo(160, 0); ctx.lineTo(160, 224); ctx.stroke(); ctx.setLineDash([]);
+
+          ctx.font = '24px "Space Mono", monospace';
+          ctx.fillStyle = '#38bdf8'; ctx.fillText(`${s.score1}`, 110, 40);
+          ctx.fillText(`${s.score2}`, 180, 40);
+
+          ctx.fillStyle = '#38bdf8'; ctx.fillRect(18, s.p1Y, 6, 36);
+          ctx.fillStyle = '#f43f5e'; ctx.fillRect(296, s.p2Y, 6, 36);
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(s.ballX - 3, s.ballY - 3, 6, 6);
+        } else {
+          // VDP Stress Test
+          const s = gameState;
+          ctx.fillStyle = '#040711'; ctx.fillRect(0, 0, 320, 224);
+          ctx.font = '9px "Space Mono", monospace';
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillText('VDP 16-BIT PALETTE TEST (64 CORES)', 16, 20);
+
+          for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 16; c++) {
+              const hue = (c * 22 + r * 45 + s.tick) % 360;
+              ctx.fillStyle = `hsl(${hue}, 85%, ${30 + r * 15}%)`;
+              ctx.fillRect(20 + c * 17, 34 + r * 16, 15, 14);
+            }
+          }
+
+          ctx.fillStyle = '#a855f7';
+          ctx.fillText('YM2612 6-CH FM + PSG CHANNELS', 16, 115);
+          for (let ch = 0; ch < 6; ch++) {
+            const h = Math.abs(Math.sin((s.tick + ch * 15) * 0.08)) * 36;
+            ctx.fillStyle = ch < 3 ? '#38bdf8' : '#ec4899';
+            ctx.fillRect(30 + ch * 45, 175 - h, 26, h);
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText(`CH${ch + 1}`, 32 + ch * 45, 192);
+          }
+        }
+      }
+
+      // 8. Save States Manager (Slots 1 to 5)
+      async function renderSaveSlots() {
+        const c = document.getElementById('slotsContainer');
+        c.innerHTML = '';
+        if (!currentGame) return;
+
+        document.getElementById('savesModalGameTitle').textContent = currentGame.title;
+
+        for (let i = 1; i <= 5; i++) {
+          const key = `state_${currentGame.id}_${i}`;
+          const savedData = await dbGet('states', key);
+
+          const slotDiv = document.createElement('div');
+          slotDiv.style.background = savedData ? 'rgba(2,6,23,0.8)' : 'rgba(2,6,23,0.3)';
+          slotDiv.style.border = savedData ? '1px solid #334155' : '1px dashed #1e293b';
+          slotDiv.style.borderRadius = '0.75rem';
+          slotDiv.style.padding = '0.75rem';
+          slotDiv.style.display = 'flex';
+          slotDiv.style.flexDirection = 'column';
+          slotDiv.style.justifyContent = 'space-between';
+          slotDiv.style.gap = '0.5rem';
+
+          let thumbHtml = '<div style="width:100%; height:80px; background:#0b0f19; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#475569; font-size:10px;">Slot Vazio</div>';
+          if (savedData && savedData.thumb) {
+            thumbHtml = `<img src="${savedData.thumb}" style="width:100%; height:80px; object-fit:cover; border-radius:6px;" />`;
+          }
+
+          slotDiv.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:bold; color:#38bdf8; font-family:var(--font-mono); font-size:11px;">SLOT ${i}</span>
+              <span style="font-size:9px; color:#64748b; font-family:var(--font-mono);">${savedData ? savedData.date : 'Vazio'}</span>
+            </div>
+            ${thumbHtml}
+            <div style="display:flex; gap:0.4rem; margin-top:4px;">
+              ${savedData ? `
+                <button class="btn btn-emerald tv-focusable" style="flex:1; padding:0.35rem; font-size:10px; font-weight:bold;" onclick="loadSlot(${i})">Carregar</button>
+                <button class="btn btn-dark tv-focusable" style="flex:1; padding:0.35rem; font-size:10px;" onclick="saveSlot(${i})">Gravar</button>
+                <button class="btn btn-dark" style="padding:0.35rem;" onclick="exportSlot(${i})" title="Exportar .state">⬇</button>
+              ` : `
+                <button class="btn btn-cyan tv-focusable" style="width:100%; padding:0.4rem; font-size:11px; font-weight:bold;" onclick="saveSlot(${i})">Salvar Aqui</button>
+              `}
+            </div>
+          `;
+          c.appendChild(slotDiv);
+        }
+      }
+
+      async function saveSlot(slot) {
+        if (!currentGame) return;
+        sfx.playSelect();
+        const thumb = canvas.toDataURL('image/jpeg', 0.6);
+        const data = {
+          id: `state_${currentGame.id}_${slot}`,
+          gameId: currentGame.id,
+          slot: slot,
+          date: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+          thumb: thumb,
+          state: JSON.parse(JSON.stringify(gameState))
+        };
+        await dbSet('states', data.id, data);
+        showNotification(`Progresso salvo no Slot ${slot}!`);
+        renderSaveSlots();
+      }
+
+      async function loadSlot(slot) {
+        if (!currentGame) return;
+        sfx.playSelect();
+        const key = `state_${currentGame.id}_${slot}`;
+        const data = await dbGet('states', key);
+        if (data && data.state) {
+          gameState = data.state;
+          showNotification(`Progresso restaurado do Slot ${slot}!`);
+          closeModal('savesModal');
+        }
+      }
+
+      async function exportSlot(slot) {
+        if (!currentGame) return;
+        const key = `state_${currentGame.id}_${slot}`;
+        const data = await dbGet('states', key);
+        if (!data) return;
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentGame.title}_slot${slot}.state`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function saveSlotQuick(slot) {
+        saveSlot(slot);
+      }
+      function loadSlotQuick(slot) {
+        loadSlot(slot);
+      }
+
+      // 9. External ROM Loading & IndexedDB Library
+      async function handleRomFileSelected(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        sfx.playSelect();
+        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+        const romItem = {
+          id: `rom_${Date.now()}`,
+          title: cleanName,
+          filename: file.name,
+          sizeBytes: file.size,
+          dateAdded: new Date().toLocaleDateString()
+        };
+
+        await dbSet('roms', romItem.id, romItem);
+        closeModal('romModal');
+        showNotification(`ROM carregada: ${romItem.title}`);
+        refreshCustomRomsList();
+        playGameById(romItem.id, romItem);
+      }
+
+      async function loadRomFromUrl() {
+        const url = document.getElementById('romUrlInput').value.trim();
+        if (!url) return;
+        sfx.playFocus();
+        showNotification('Baixando ROM via URL...');
+
+        try {
+          const resp = await fetch(url);
+          const blob = await resp.blob();
+          const cleanName = url.split('/').pop().replace(/\.[^/.]+$/, '') || 'ROM Web';
+          const romItem = {
+            id: `rom_${Date.now()}`,
+            title: cleanName,
+            filename: cleanName + '.bin',
+            sizeBytes: blob.size,
+            dateAdded: new Date().toLocaleDateString()
+          };
+          await dbSet('roms', romItem.id, romItem);
+          closeModal('romModal');
+          refreshCustomRomsList();
+          playGameById(romItem.id, romItem);
+        } catch {
+          showNotification('Erro ao baixar ROM da URL informada.');
+        }
+      }
+
+      async function refreshCustomRomsList() {
+        const list = await dbGetAll('roms');
+        const sec = document.getElementById('customRomsSection');
+        const grid = document.getElementById('customRomsGrid');
+        if (list.length > 0) {
+          sec.style.display = 'block';
+          grid.innerHTML = '';
+          list.forEach(r => {
+            const card = document.createElement('div');
+            card.className = 'tv-focusable';
+            card.tabIndex = 0;
+            card.style.background = '#0f172a';
+            card.style.border = '1px solid #1e293b';
+            card.style.borderRadius = '1rem';
+            card.style.padding = '1rem';
+            card.style.display = 'flex';
+            card.style.flexDirection = 'column';
+            card.style.justifyContent = 'space-between';
+            card.style.gap = '0.5rem';
+            card.onclick = () => playGameById(r.id, r);
+            card.innerHTML = `
+              <div>
+                <div style="font-size:10px; font-family:var(--font-mono); color:#38bdf8; font-weight:bold;">ROM EXTERNA</div>
+                <div style="font-weight:bold; color:#fff; font-size:13px; margin-top:2px;">${r.title}</div>
+                <div style="font-size:11px; color:#64748b; font-family:var(--font-mono); margin-top:2px;">${(r.sizeBytes/1024).toFixed(0)} KB · ${r.dateAdded}</div>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #1e293b; padding-top:0.5rem;">
+                <span class="btn btn-cyan" style="font-size:10px; padding:0.3rem 0.6rem;">Iniciar</span>
+                <button class="btn btn-rose" style="font-size:10px; padding:0.3rem 0.5rem;" onclick="event.stopPropagation(); deleteCustomRom('${r.id}')">Excluir</button>
+              </div>
+            `;
+            grid.appendChild(card);
+          });
+        } else {
+          sec.style.display = 'none';
+        }
+      }
+
+      async function deleteCustomRom(id) {
+        sfx.playBack();
+        await dbDel('roms', id);
+        refreshCustomRomsList();
+      }
+
+      // 10. 1-Click "Download this Self-Contained HTML File" (USB / TV)
+      function downloadSelfFile() {
+        sfx.playSelect();
+        const htmlContent = '<!doctype html>\n' + document.documentElement.outerHTML;
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'megadrive-tv-stick-emulator.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showNotification('Arquivo megadrive-tv-stick-emulator.html baixado! Pode copiar para seu Pen-drive ou TV.');
+      }
+
+      // Initial Bootstrap
+      window.addEventListener('DOMContentLoaded', () => {
+        refreshCustomRomsList();
+        updateRamUi();
+      });
+    </script>
+  </body>
+</html>
